@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>app.xengate.xengate</id>
+
+  <name>XenGate</name>
+  <developer_name>Alexandros Ballas</developer_name>
+  <summary>Stream media to TVs and devices</summary>
+
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+
+  <description>
+   <p>Go2TV is a lightweight app designed to cast media files from your device directly to a Smart TV or any DLNA-compatible device on the same network. It supports various file formats and allows seamless streaming of videos, music, or images without the need for complicated setups or additional hardware. With its intuitive interface, Go2TV makes it simple to browse and select files, enabling users to enjoy their favorite content on the big screen with just a few taps. Perfect for casual media sharing or presentations, it's a convenient tool for enhancing your home entertainment experience.</p>
+  </description>
+
+  <launchable type="desktop-id">app.xengate.xengate.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/alexballas/xengate/devel/assets/screenshots/Screenshot_light.png</image>
+      <caption>Main window (light mode)</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/alexballas/xengate/devel/assets/screenshots/Screenshot_dark.png</image>
+      <caption>Main window (dark mode)</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/alexballas/xengate/devel/assets/screenshots/Screenshot_settings_dark.png</image>
+      <caption>Settings window (dark mode)</caption>
+    </screenshot>
+  </screenshots>
+
+  <url type="bugtracker">https://github.com/alexballas/xengate/issues</url>
+  <url type="donation">https://ko-fi.com/alexballas</url>
+  <url type="homepage">https://xengate.app</url>
+
+
+  <content_rating type="oars-1.1"/>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#eadaffff</color>
+    <color type="primary" scheme_preference="dark">#d8bdffff</color>
+  </branding>
+
+  <releases>
+      <release version="1.18.1" date="2025-01-02" type="stable">
+      <description>
+        <ul>
+          <li>Fix broken device detection on Windows 11.</li>
+        </ul>
+      </description>
+      <url type="details">https://github.com/alexballas/xengate/releases/tag/v1.18.1</url>
+    </release>
+    <release version="1.18.0" date="2025-01-02" type="stable">
+      <description>
+        <ul>
+          <li>Added seek support for video transcoding.</li>
+          <li>Improved user interface.</li>
+          <li>Fixed CLI issue on Windows; a black window may briefly appear during startup now.</li>
+          <li>Improved device discoverability: the app now uses a specific port (1900) for SSDP traffic, making it easier to configure firewalls.</li>
+          <li>Fix broken language selection.</li>
+        </ul>
+      </description>
+      <url type="details">https://github.com/alexballas/xengate/releases/tag/v1.18.0</url>
+    </release>
+    <release version="1.17.1" date="2024-09-05" type="stable">
+      <description>
+        <ul>
+          <li>Update assets to follow the packaging guidelines for Linux GUI applications..</li>
+        </ul>
+      </description>
+      <url type="details">https://github.com/alexballas/xengate/releases/tag/v1.17.1</url>
+    </release>
+    <release version="1.17.0" date="2024-09-05" type="stable">
+      <description>
+        <ul>
+          <li>Added support for Chinese language with an option for a fully localized Chinese UI.</li>
+          <li>Introduced a new language settings feature, offering both English and Chinese translations.</li>
+          <li>Implemented the ability to select subtitles directly from MKV and MP4 containers when available.</li>
+          <li>Added the option to specify the FFmpeg path in settings.</li>
+          <li>Now using faster FFmpeg presets for transcoding.</li>
+        </ul>
+      </description>
+      <url type="details">https://github.com/alexballas/xengate/releases/tag/v1.17.0</url>
+    </release>
+  </releases>
+
+</component>

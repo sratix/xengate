@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+
+Name=XenGate
+GenericName=Internet Proxy
+Comment=Forward any internet request via its ways.
+MimeType=x-scheme-handler/xengate;
+Categories=Network;
+Keywords=streaming;video;audio;media;
+
+Icon=app.xengate.xengate
+Exec=xengate
+Terminal=false
