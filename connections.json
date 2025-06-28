@@ -1,0 +1,25 @@
+{
+    "connections": [
+        {
+            "name": "Hejazi",
+            "host": "104.194.132.167",
+            "port": 32770,
+            "user": "mehran",
+            "password": "mehranpass",
+            "connections": 3,
+            "max_retries": 3,
+            "is_connected": false
+        },
+        {
+            "name": "Cephalex",
+            "host": "78.129.220.121",
+            "port": 22,
+            "user": "rasul",
+            "password": "Ali!@#",
+            "connections": 3,
+            "max_retries": 3,
+            "is_connected": false
+        }
+    ],
+    "last_used": "2025-06-29T00:47:09+03:30"
+}
