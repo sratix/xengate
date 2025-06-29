@@ -31,7 +31,7 @@ func serve(_ *cobra.Command, _ []string) {
 	zap.ReplaceGlobals(logger)
 
 	// wa := webapp.NewWebApp(cfg.App.WebApp, true)
-	ui := gui.NewFyneScreen(version)
+	ui := gui.NewFyneUI(version)
 	// graceful.AddCallback(func() error {
 	// 	zap.S().Info("shutting down webapp")
 	// 	return ui.Shutdown(ctx)

@@ -3,6 +3,7 @@ module xengate
 go 1.24.4
 
 require (
+	fyne.io/fyne v1.4.3
 	fyne.io/fyne/v2 v2.6.1
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/json-iterator/go v1.1.12

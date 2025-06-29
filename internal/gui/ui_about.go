@@ -21,7 +21,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-func aboutWindow(s *FyneScreen) fyne.CanvasObject {
+func aboutWindow(s *FyneUI) fyne.CanvasObject {
 	iconResource := fyne.NewStaticResource("Go2TV Icon", go2TVIcon512)
 	iconImage := canvas.NewImageFromResource(iconResource)
 	description := widget.NewRichTextFromMarkdown(`
@@ -72,7 +72,7 @@ MIT
 	return container.NewPadded(content)
 }
 
-func checkVersion(s *FyneScreen) {
+func checkVersion(s *FyneUI) {
 	s.CheckVersion.Disable()
 	defer s.CheckVersion.Enable()
 
@@ -82,13 +82,13 @@ func checkVersion(s *FyneScreen) {
 
 	req, err := http.NewRequest("GET", "https://github.com/alexballas/Go2TV/releases/latest", nil)
 	if err != nil {
-		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("check your internet connection")), s.Current)
+		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("check your internet connection")), s.MainWin)
 		return
 	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("check your internet connection")), s.Current)
+		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("check your internet connection")), s.MainWin)
 		return
 	}
 
@@ -96,13 +96,13 @@ func checkVersion(s *FyneScreen) {
 
 	location, err := resp.Location()
 	if err != nil {
-		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("you're using a development or a non-compiled version")), s.Current)
+		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("you're using a development or a non-compiled version")), s.MainWin)
 		return
 	}
 
 	currentVersion, err := strconv.Atoi(strings.ReplaceAll(s.version, ".", ""))
 	if err != nil {
-		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("you're using a development or a non-compiled version")), s.Current)
+		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("you're using a development or a non-compiled version")), s.MainWin)
 		return
 	}
 
@@ -110,16 +110,16 @@ func checkVersion(s *FyneScreen) {
 	latestVersionStr = strings.Trim(latestVersionStr, "v")
 	latestVersion, err := strconv.Atoi(strings.ReplaceAll(latestVersionStr, ".", ""))
 	if err != nil {
-		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("check your internet connection")), s.Current)
+		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("check your internet connection")), s.MainWin)
 		return
 	}
 
 	switch {
 	case latestVersion > currentVersion:
-		dialog.ShowInformation(lang.L("Version checker"), lang.L("New version")+": "+latestVersionStr, s.Current)
+		dialog.ShowInformation(lang.L("Version checker"), lang.L("New version")+": "+latestVersionStr, s.MainWin)
 	case latestVersion == currentVersion:
-		dialog.ShowInformation(lang.L("Version checker"), lang.L("No new version"), s.Current)
+		dialog.ShowInformation(lang.L("Version checker"), lang.L("No new version"), s.MainWin)
 	default:
-		dialog.ShowInformation(lang.L("Version checker"), lang.L("New version")+": "+latestVersionStr, s.Current)
+		dialog.ShowInformation(lang.L("Version checker"), lang.L("New version")+": "+latestVersionStr, s.MainWin)
 	}
 }

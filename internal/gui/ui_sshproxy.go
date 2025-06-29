@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -31,8 +32,15 @@ type Connection struct {
 	IsConnected bool   `json:"is_connected"`
 }
 
+type Proxy struct {
+	ProxyType string `json:"proxy_type"` // socks5, http, https
+	ProxyHost string `json:"proxy_host"`
+	ProxyPort int    `json:"proxy_port"`
+}
+
 type Config struct {
 	Connections []Connection `json:"connections"`
+	ProxyInfo   Proxy        `json:"proxyinfo"`
 	LastUsed    string       `json:"last_used"`
 }
 
@@ -47,6 +55,9 @@ var (
 	passwordEntry     *widget.Entry
 	connectionsEntry  *widget.Entry
 	retriesEntry      *widget.Entry
+	proxyTypeSelect   *widget.Select
+	proxyHostEntry    *widget.Entry
+	proxyPortEntry    *widget.Entry
 	logArea           *widget.TextGrid
 	statusIndicator   *canvas.Circle
 	blinkingAnimation *time.Ticker
@@ -54,6 +65,8 @@ var (
 	allCheckbox       *widget.Check
 	connectedCount    int
 	window            fyne.Window
+	connectionCard    *widget.Card
+	proxyCard         *widget.Card
 )
 
 const (
@@ -209,15 +222,27 @@ func setupFormEntries() {
 	portEntry.SetPlaceHolder("22")
 	userEntry.SetPlaceHolder("Username")
 	passwordEntry.SetPlaceHolder("Password")
+
+	proxyTypeSelect = widget.NewSelect([]string{"socks5", "http"}, nil)
+	proxyHostEntry = widget.NewEntry()
+	proxyPortEntry = widget.NewEntry()
+
+	proxyTypeSelect.SetSelected("socks5")
+	proxyHostEntry.SetText("0.0.0.0")
+	proxyPortEntry.SetText("1080")
+
+	// تنظیم placeholder ها
+	proxyHostEntry.SetPlaceHolder("Proxy Host")
+	proxyPortEntry.SetPlaceHolder("1080")
 }
 
 func setupButtons() *fyne.Container {
-	addBtn := widget.NewButtonWithIcon("New", theme.ContentAddIcon(), func() {
+	addBtn := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
 		clearForm()
 		addLog("Ready to add new connection")
 	})
 
-	saveBtn := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
+	saveBtn := widget.NewButtonWithIcon("", theme.DocumentSaveIcon(), func() {
 		if err := validateForm(); err != nil {
 			addLog(fmt.Sprintf("Error: %s", err))
 			return
@@ -245,51 +270,51 @@ func setupButtons() *fyne.Container {
 		addLog(fmt.Sprintf("Saved connection: %s", name))
 	})
 
-	connectBtn = widget.NewButtonWithIcon("Connect", theme.MediaPlayIcon(), func() {
-		if allCheckbox.Checked {
-			// Connect/Disconnect all
-			isConnecting := connectBtn.Text == "Connect"
-			for _, conn := range connections {
-				conn.IsConnected = isConnecting
-				if isConnecting {
-					addLog(fmt.Sprintf("Connected to %s@%s:%d", conn.User, conn.Host, conn.Port))
-				} else {
-					addLog(fmt.Sprintf("Disconnected from %s@%s:%d", conn.User, conn.Host, conn.Port))
-				}
-			}
-			if isConnecting {
-				startBlinking()
-				connectBtn.SetText("Disconnect")
-				connectBtn.SetIcon(theme.MediaStopIcon())
-			} else {
-				stopBlinking()
-				connectBtn.SetText("Connect")
-				connectBtn.SetIcon(theme.MediaPlayIcon())
-			}
-			updateConnectedCount()
-		} else {
-			// Single connection
-			name := nameEntry.Text
-			if conn, exists := connections[name]; exists {
-				conn.IsConnected = !conn.IsConnected
-				if conn.IsConnected {
-					startBlinking()
-					connectBtn.SetText("Disconnect")
-					connectBtn.SetIcon(theme.MediaStopIcon())
-					addLog(fmt.Sprintf("Connected to %s@%s:%d", conn.User, conn.Host, conn.Port))
-				} else {
-					stopBlinking()
-					connectBtn.SetText("Connect")
-					connectBtn.SetIcon(theme.MediaPlayIcon())
-					addLog(fmt.Sprintf("Disconnected from %s@%s:%d", conn.User, conn.Host, conn.Port))
-				}
-				updateConnectedCount()
-			}
-		}
-		saveConfig(connections)
+	connectBtn = widget.NewButtonWithIcon("", theme.MediaPlayIcon(), func() {
+		// if allCheckbox.Checked {
+		// 	// Connect/Disconnect all
+		// 	isConnecting := connectBtn.Text == "Connect"
+		// 	for _, conn := range connections {
+		// 		conn.IsConnected = isConnecting
+		// 		if isConnecting {
+		// 			addLog(fmt.Sprintf("Connected to %s@%s:%d", conn.User, conn.Host, conn.Port))
+		// 		} else {
+		// 			addLog(fmt.Sprintf("Disconnected from %s@%s:%d", conn.User, conn.Host, conn.Port))
+		// 		}
+		// 	}
+		// 	if isConnecting {
+		// 		startBlinking()
+		// 		connectBtn.SetText("Disconnect")
+		// 		connectBtn.SetIcon(theme.MediaStopIcon())
+		// 	} else {
+		// 		stopBlinking()
+		// 		connectBtn.SetText("Connect")
+		// 		connectBtn.SetIcon(theme.MediaPlayIcon())
+		// 	}
+		// 	updateConnectedCount()
+		// } else {
+		// 	// Single connection
+		// 	name := nameEntry.Text
+		// 	if conn, exists := connections[name]; exists {
+		// 		conn.IsConnected = !conn.IsConnected
+		// 		if conn.IsConnected {
+		// 			startBlinking()
+		// 			connectBtn.SetText("Disconnect")
+		// 			connectBtn.SetIcon(theme.MediaStopIcon())
+		// 			addLog(fmt.Sprintf("Connected to %s@%s:%d", conn.User, conn.Host, conn.Port))
+		// 		} else {
+		// 			stopBlinking()
+		// 			connectBtn.SetText("Connect")
+		// 			connectBtn.SetIcon(theme.MediaPlayIcon())
+		// 			addLog(fmt.Sprintf("Disconnected from %s@%s:%d", conn.User, conn.Host, conn.Port))
+		// 		}
+		// 		updateConnectedCount()
+		// 	}
+		// }
+		// saveConfig(connections)
 	})
 
-	deleteBtn := widget.NewButtonWithIcon("Delete", theme.DeleteIcon(), func() {
+	deleteBtn := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
 		name := nameEntry.Text
 		if _, exists := connections[name]; exists {
 			delete(connections, name)
@@ -300,18 +325,18 @@ func setupButtons() *fyne.Container {
 		}
 	})
 
-	clearBtn := widget.NewButtonWithIcon("Clear", theme.ContentClearIcon(), func() {
+	clearBtn := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
 		clearForm()
 		addLog("Form cleared")
 	})
 
-	allCheckbox = widget.NewCheck("All Connections", func(checked bool) {
-		if checked {
-			addLog("All connections mode enabled")
-		} else {
-			addLog("Single connection mode enabled")
-		}
-	})
+	// allCheckbox = widget.NewCheck("All Conn.", func(checked bool) {
+	// 	if checked {
+	// 		addLog("All connections mode enabled")
+	// 	} else {
+	// 		addLog("Single connection mode enabled")
+	// 	}
+	// })
 
 	// Status indicator
 	statusIndicator = canvas.NewCircle(color.RGBA{R: 255, G: 0, B: 0, A: 255})
@@ -319,15 +344,29 @@ func setupButtons() *fyne.Container {
 	statusIndicatorContainer := container.NewPadded(statusIndicator)
 
 	// Group connect button and checkbox
-	connectGroup := container.NewHBox(connectBtn, allCheckbox)
+	// connectGroup := container.NewHBox(connectBtn, allCheckbox)
 
-	return container.NewHBox(
+	return container.NewVBox(
 		addBtn,
 		saveBtn,
-		connectGroup,
+		connectBtn,
 		deleteBtn,
 		clearBtn,
 		statusIndicatorContainer,
+	)
+}
+
+func setupProxyForm() *widget.Card {
+	proxyForm := container.NewGridWithRows(1,
+		widget.NewLabel("Type:"), proxyTypeSelect,
+		widget.NewLabel("Host:"), proxyHostEntry,
+		widget.NewLabel("Port:"), proxyPortEntry,
+	)
+
+	return widget.NewCard(
+		"Proxy Settings",
+		"Configure proxy connection settings",
+		proxyForm,
 	)
 }
 
@@ -368,11 +407,11 @@ func setupConnectionList() *widget.List {
 			retriesEntry.SetText(fmt.Sprintf("%d", conn.MaxRetries))
 
 			if conn.IsConnected {
-				connectBtn.SetText("Disconnect")
+				// connectBtn.SetText("Disconnect")
 				connectBtn.SetIcon(theme.MediaStopIcon())
 				startBlinking()
 			} else {
-				connectBtn.SetText("Connect")
+				// connectBtn.SetText("Connect")
 				connectBtn.SetIcon(theme.MediaPlayIcon())
 				stopBlinking()
 			}
@@ -383,7 +422,7 @@ func setupConnectionList() *widget.List {
 }
 
 func setupForm() *fyne.Container {
-	return container.NewGridWithColumns(2,
+	mainForm := container.NewGridWithColumns(2,
 		widget.NewLabel("Name:"), nameEntry,
 		widget.NewLabel("Host:"), hostEntry,
 		widget.NewLabel("Port:"), portEntry,
@@ -392,10 +431,25 @@ func setupForm() *fyne.Container {
 		widget.NewLabel("Connections:"), connectionsEntry,
 		widget.NewLabel("Max Retries:"), retriesEntry,
 	)
+
+	connectionCard := widget.NewCard(
+		"Connection Settings",
+		"Configure main connection settings",
+		mainForm,
+	)
+	proxyForm := setupProxyForm()
+
+	// ترکیب دو فرم با یک separator
+	return container.NewHBox(container.NewVBox(
+		layout.NewSpacer(),
+		connectionCard,
+		widget.NewSeparator(),
+		proxyForm,
+	), container.NewCenter(setupButtons()))
 }
 
-func mainWindow(s *FyneScreen) fyne.CanvasObject {
-	window = s.Current
+func mainWindow(s *FyneUI) fyne.CanvasObject {
+	window = s.MainWin
 
 	// Initialize global variables
 	connections = make(map[string]*Connection)
@@ -404,7 +458,7 @@ func mainWindow(s *FyneScreen) fyne.CanvasObject {
 
 	// Setup UI components
 	setupFormEntries()
-	buttons := setupButtons()
+	// buttons := setupButtons()
 	list := setupConnectionList()
 	form := setupForm()
 
@@ -415,7 +469,7 @@ func mainWindow(s *FyneScreen) fyne.CanvasObject {
 	// Layout
 	rightSideContent := container.NewVBox(
 		form,
-		buttons,
+		// buttons,
 		widget.NewSeparator(),
 	)
 

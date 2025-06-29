@@ -3,7 +3,7 @@
 
 package gui
 
-// NewFyneScreen .
-func NewFyneScreen(version string) *FyneScreen {
-	return initFyneNewScreen(version)
+// NewFyneUI .
+func NewFyneUI(version string) *FyneUI {
+	return newGUI(version)
 }
