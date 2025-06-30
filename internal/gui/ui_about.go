@@ -21,7 +21,13 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-func aboutWindow(s *FyneUI) fyne.CanvasObject {
+const (
+	versionCheckerTitle     = "Version checker"
+	versionInfoError        = "failed to get version info"
+	internetConnectionError = "check your internet connection"
+)
+
+func aboutWindow(w *AppWindow) fyne.CanvasObject {
 	iconResource := fyne.NewStaticResource("Go2TV Icon", go2TVIcon512)
 	iconImage := canvas.NewImageFromResource(iconResource)
 	description := widget.NewRichTextFromMarkdown(`
@@ -37,7 +43,7 @@ MIT
 
 ## ` + lang.L("Version") + `
 
-` + s.version)
+` + w.version)
 
 	for _, segment := range description.Segments {
 		if textSegment, ok := segment.(*widget.TextSegment); ok {
@@ -56,10 +62,10 @@ MIT
 	})
 
 	versionButton := widget.NewButton(lang.L("Check version"), func() {
-		go checkVersion(s)
+		go checkVersion(w)
 	})
 
-	s.CheckVersion = versionButton
+	w.CheckVersion = versionButton
 
 	iconImage.SetMinSize(fyne.Size{Width: 64, Height: 64})
 
@@ -72,23 +78,23 @@ MIT
 	return container.NewPadded(content)
 }
 
-func checkVersion(s *FyneUI) {
-	s.CheckVersion.Disable()
-	defer s.CheckVersion.Enable()
+func checkVersion(w *AppWindow) {
+	w.CheckVersion.Disable()
+	defer w.CheckVersion.Enable()
 
-	httpClient := &http.Client{
+	client := &http.Client{
 		Timeout: 3 * time.Second,
 	}
 
 	req, err := http.NewRequest("GET", "https://github.com/alexballas/Go2TV/releases/latest", nil)
 	if err != nil {
-		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("check your internet connection")), s.MainWin)
+		dialog.ShowError(errors.New(lang.L(versionInfoError)+" - "+lang.L(internetConnectionError)), w.window)
 		return
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
-		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("check your internet connection")), s.MainWin)
+		dialog.ShowError(errors.New(lang.L(versionInfoError)+" - "+lang.L(internetConnectionError)), w.window)
 		return
 	}
 
@@ -96,13 +102,14 @@ func checkVersion(s *FyneUI) {
 
 	location, err := resp.Location()
 	if err != nil {
-		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("you're using a development or a non-compiled version")), s.MainWin)
+		dialog.ShowError(errors.New(lang.L(versionInfoError)+" - "+lang.L("you're using a development or a non-compiled version")), w.window)
 		return
 	}
 
-	currentVersion, err := strconv.Atoi(strings.ReplaceAll(s.version, ".", ""))
+	currentVersionStr := strings.ReplaceAll(w.version, ".", "")
+	currentVersion, err := strconv.Atoi(currentVersionStr)
 	if err != nil {
-		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("you're using a development or a non-compiled version")), s.MainWin)
+		dialog.ShowError(errors.New(lang.L(versionInfoError)+" - "+lang.L("you're using a development or a non-compiled version")), w.window)
 		return
 	}
 
@@ -110,16 +117,16 @@ func checkVersion(s *FyneUI) {
 	latestVersionStr = strings.Trim(latestVersionStr, "v")
 	latestVersion, err := strconv.Atoi(strings.ReplaceAll(latestVersionStr, ".", ""))
 	if err != nil {
-		dialog.ShowError(errors.New(lang.L("failed to get version info")+" - "+lang.L("check your internet connection")), s.MainWin)
+		dialog.ShowError(errors.New(lang.L(versionInfoError)+" - "+lang.L(internetConnectionError)), w.window)
 		return
 	}
 
 	switch {
 	case latestVersion > currentVersion:
-		dialog.ShowInformation(lang.L("Version checker"), lang.L("New version")+": "+latestVersionStr, s.MainWin)
+		dialog.ShowInformation(lang.L(versionCheckerTitle), lang.L("New version")+": "+latestVersionStr, w.window)
 	case latestVersion == currentVersion:
-		dialog.ShowInformation(lang.L("Version checker"), lang.L("No new version"), s.MainWin)
+		dialog.ShowInformation(lang.L(versionCheckerTitle), lang.L("No new version"), w.window)
 	default:
-		dialog.ShowInformation(lang.L("Version checker"), lang.L("New version")+": "+latestVersionStr, s.MainWin)
+		dialog.ShowInformation(lang.L(versionCheckerTitle), lang.L("New version")+": "+latestVersionStr, w.window)
 	}
 }

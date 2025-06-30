@@ -30,25 +30,10 @@ func serve(_ *cobra.Command, _ []string) {
 	logger := logg.New(cfg.Logger).Desugar()
 	zap.ReplaceGlobals(logger)
 
-	// wa := webapp.NewWebApp(cfg.App.WebApp, true)
-	ui := gui.NewFyneUI(version)
-	// graceful.AddCallback(func() error {
-	// 	zap.S().Info("shutting down webapp")
-	// 	return ui.Shutdown(ctx)
-	// })
-
-	// go func() {
-	if err := gui.Start(ctx, ui); err != nil {
+	ui := gui.NewApp("XenGate", version)
+	if err := ui.Start(ctx); err != nil {
 		zap.S().Error("couldn't start xengate", zap.Error(err))
 	}
-
-	// graceful.ShutdownNow()
-	// }()
-
-	// if err := graceful.WaitShutdown(); err != nil {
-	// 	zap.S().Error("unable to shutdown xengate gracefully", zap.Error(err))
-	// 	return
-	// }
 
 	zap.S().Info("shutdown complete")
 }

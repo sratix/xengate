@@ -126,7 +126,7 @@ func updateConnectionList() {
 	saveConfig(connections)
 
 	// Update window title with connection count
-	window.SetTitle("") // fmt.Sprintf("%s (%d/%d Connected)", appTitle, connectedCount, len(connections)))
+	// window.SetTitle("") // fmt.Sprintf("%s (%d/%d Connected)", appTitle, connectedCount, len(connections)))
 }
 
 func clearForm() {
@@ -448,8 +448,8 @@ func setupForm() *fyne.Container {
 	), container.NewCenter(setupButtons()))
 }
 
-func mainWindow(s *FyneUI) fyne.CanvasObject {
-	window = s.MainWin
+func mainWindow(w *AppWindow) fyne.CanvasObject {
+	// window = s.MainWin
 
 	// Initialize global variables
 	connections = make(map[string]*Connection)
