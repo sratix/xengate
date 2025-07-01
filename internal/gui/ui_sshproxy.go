@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"xengate/internal/gui/components"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -448,9 +450,10 @@ func setupForm() *fyne.Container {
 	), container.NewCenter(setupButtons()))
 }
 
-func mainWindow(w *AppWindow) fyne.CanvasObject {
-	// window = s.MainWin
+// func (w *AppWindow) showAddConnection() {}
+// func (w *AppWindow) showSettings()      {}
 
+func mainWindow(a *App) fyne.CanvasObject {
 	// Initialize global variables
 	connections = make(map[string]*Connection)
 	connectionList = binding.NewStringList()
@@ -503,5 +506,38 @@ func mainWindow(w *AppWindow) fyne.CanvasObject {
 
 	updateConnectionList()
 
-	return mainSplit
+	accordion := components.NewCustomAccordion()
+
+	accordion.AddItem("اطلاعات شخصی", []string{
+		"نام",
+		"نام خانوادگی",
+		"کد ملی",
+	})
+
+	accordion.AddItem("اطلاعات تماس", []string{
+		"شماره موبایل",
+		"ایمیل",
+		"آدرس",
+	})
+
+	accordion.AddItem("اطلاعات شغلی", []string{
+		"عنوان شغلی",
+		"نام شرکت",
+		"سابقه کار",
+	})
+
+	// content := container.NewVScroll(accordion)
+
+	// content := container.NewVBox(
+	// 	toolbar,
+	// 	container.NewCenter(
+	// 		container.NewVBox(
+	// 			container.NewVScroll(accordion),
+	// 		)),
+	// )
+
+	// return mainSplit
+	// return container.NewPadded(content)
+
+	return nil
 }

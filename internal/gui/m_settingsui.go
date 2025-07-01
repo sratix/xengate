@@ -16,12 +16,12 @@ import (
 
 const systemDefault = "System Default"
 
-func settingsWindow(w *AppWindow) fyne.CanvasObject {
+func settingsWindow(a *App) fyne.CanvasObject {
 	themeText := widget.NewLabel(lang.L("Theme"))
 	dropdownTheme := widget.NewSelect([]string{lang.L(systemDefault), lang.L("Light"), lang.L("Dark")}, parseTheme)
 
 	languageText := widget.NewLabel(lang.L("Language"))
-	dropdownLanguage := widget.NewSelect([]string{lang.L(systemDefault), "English", "Persian"}, parseLanguage(w))
+	dropdownLanguage := widget.NewSelect([]string{lang.L(systemDefault), "English", "Persian"}, parseLanguage(a))
 	selectedLanguage := fyne.CurrentApp().Preferences().StringWithFallback("Language", systemDefault)
 
 	if selectedLanguage == systemDefault {
@@ -34,7 +34,7 @@ func settingsWindow(w *AppWindow) fyne.CanvasObject {
 	dropdownTheme.PlaceHolder = themeName
 	parseTheme(themeName)
 
-	w.systemTheme = fyne.CurrentApp().Settings().ThemeVariant()
+	a.systemTheme = fyne.CurrentApp().Settings().ThemeVariant()
 
 	dropdownTheme.Refresh()
 
@@ -58,10 +58,10 @@ func parseTheme(t string) {
 	}()
 }
 
-func parseLanguage(w *AppWindow) func(string) {
+func parseLanguage(a *App) func(string) {
 	return func(t string) {
 		if t != fyne.CurrentApp().Preferences().StringWithFallback("Language", systemDefault) {
-			dialog.ShowInformation(lang.L("Update Language Preferences"), lang.L(`Please restart the application for the changes to take effect.`), w.window)
+			dialog.ShowInformation(lang.L("Update Language Preferences"), lang.L(`Please restart the application for the changes to take effect.`), a.topWindow)
 		}
 		go func() {
 			switch t {
