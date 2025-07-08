@@ -1,0 +1,12 @@
+[manifest]
+target_sdk_version = "33"
+min_sdk_version = "21"
+permissions = [
+    "android.permission.INTERNET"
+]
+
+[manifest.application]
+label = "Xengate"
+icon = "@mipmap/icon"
+theme = "@android:style/Theme.Material"
+debuggable = "false"

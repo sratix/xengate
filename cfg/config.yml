@@ -1,8 +1,0 @@
-logger:
-  pretty: true
-  level: debug
-
-debug: true
-
-app:
-

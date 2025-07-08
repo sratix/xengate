@@ -1,153 +1,165 @@
-# Makefile for Go Web Application with Templ and Tailwind
+# Makefile for XenGate
 
-# Shell configuration
-SHELL := /usr/bin/env bash
+# برنامه و متغیرهای نسخه
+APPNAME := xengate
+VERSION := 0.0.1
+PACKAGE := com.xengate.$(APPNAME)
 
-#------------------------------------------------------------------------------
-# OS-specific configurations
-#------------------------------------------------------------------------------
-ifeq ($(OS),Windows_NT)
-    EXECUTABLE_EXTENSION := .exe
-    PATH_SEPARATOR      := ;
-    RM_CMD             := rd /s /q
-    MKDIR_CMD          := mkdir
-    SHELL_SYMBOL       := =>
-else
-    EXECUTABLE_EXTENSION :=
-    PATH_SEPARATOR      := :
-    RM_CMD             := rm -rf
-    MKDIR_CMD          := mkdir -p
-    SHELL_SYMBOL       := \033[34;1m▶\033[0m
-endif
+# مسیرها
+BUILDDIR := build
+DISTDIR := dist
+RESDIR := res
 
-#------------------------------------------------------------------------------
-# Project variables
-#------------------------------------------------------------------------------
-NAME          := xengate
-MODULE        := $(shell go list -m)
-VERSION       := $(shell git describe --tags --always --dirty --match=v* 2> /dev/null || cat .version 2> /dev/null || echo v0)
-DATE          := $(shell date +%FT%T%z)
-PKGS          := $(or $(PKG),$(shell go list ./...))
+# زمان ساخت
+BUILDTIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+GOVERSION := $(shell go version | cut -d' ' -f3)
 
-#------------------------------------------------------------------------------
-# Build configurations
-#------------------------------------------------------------------------------
-GO            := go
-BIN           := bin
-TIMEOUT       := 15
-V             := 0
-Q             := $(if $(filter 1,$V),,@)
-M             := $(shell printf "$(SHELL_SYMBOL)")
+# fyne-cross متغیرها
+FYNE_CROSS := $(HOME)/go/bin/fyne-cross
+# FYNE_FLAGS := -pull -metadata BuildTime="$(BUILDTIME)" -metadata GoVersion="$(GOVERSION)"
 
-# Build flags
-LDFLAGS       := -X $(MODULE)/cmd.Version=$(VERSION) -X $(MODULE)/cmd.BuildDate=$(DATE)
-GOFLAGS       := -tags "release jsoniter"
+# LDFLAGS := -X \"fyne.io/fyne/v2/app.MetadataCustom=BuildForOS={{.OS}}\" \
+#            -X \"fyne.io/fyne/v2/app.MetadataCustom=BuildTime=$(BUILDTIME)\" \
+#            -X \"fyne.io/fyne/v2/app.MetadataCustom=GoVersion=$(GOVERSION)\"
 
-# Conditional build settings
-ifeq ($(OS),Windows_NT)
-    GOBUILD   := $(GO) build
-else
-    GOBUILD   := CGO_ENABLED=0 GOOS=$$(go env GOOS) GOARCH=$$(go env GOARCH) $(GO) build
-endif
+FYNE_FLAGS := -pull
 
-#------------------------------------------------------------------------------
-# Tool binaries
-#------------------------------------------------------------------------------
-TOOLS_DIR     := $(BIN)
-GOIMPORTS     := $(TOOLS_DIR)/goimports$(EXECUTABLE_EXTENSION)
-REVIVE        := $(TOOLS_DIR)/revive$(EXECUTABLE_EXTENSION)
-GOCOV         := $(TOOLS_DIR)/gocov$(EXECUTABLE_EXTENSION)
-GOCOV_XML     := $(TOOLS_DIR)/gocov-xml$(EXECUTABLE_EXTENSION)
-GOTESTSUM     := $(TOOLS_DIR)/gotestsum$(EXECUTABLE_EXTENSION)
+# تنظیمات مربوط به نسخه و آیکون
+ICON := $(RESDIR)/appicon.png
 
-#------------------------------------------------------------------------------
-# Main targets
-#------------------------------------------------------------------------------
-.PHONY: all build clean tools test lint fmt
+.PHONY: all clean dist windows linux darwin android ios check-fyne-cross
 
-all: tools fmt lint test build ## Build everything
+# همه پلتفرم‌ها
+all: check-fyne-cross clean windows linux darwin
 
-#------------------------------------------------------------------------------
-# Build targets
-#------------------------------------------------------------------------------
-build:  ## Build the application
-	$(info $(M) Building executable...)
-	$(Q) $(GOBUILD) $(GOFLAGS) \
-		-trimpath -ldflags '$(LDFLAGS)' \
-		-o $(BIN)/$(NAME)$(EXECUTABLE_EXTENSION) main.go
+# پاک کردن فایل‌های قبلی
+clean:
+	@echo "Cleaning build directories..."
+	@rm -rf $(BUILDDIR) $(DISTDIR)
+	@mkdir -p $(BUILDDIR) $(DISTDIR)
 
-#------------------------------------------------------------------------------
-# Server targets
-#------------------------------------------------------------------------------
-serve: build ## Start Proxy server
-	$(info $(M) Starting Proxy server...)
-	$(Q) $(BIN)/$(NAME)$(EXECUTABLE_EXTENSION) serve --config=$$(pwd)/cfg/config.yml
+# بررسی نصب fyne-cross
+check-fyne-cross:
+	@if ! command -v $(FYNE_CROSS) > /dev/null; then \
+		echo "Installing fyne-cross..."; \
+		go install github.com/fyne-io/fyne-cross@latest; \
+	fi
 
-#------------------------------------------------------------------------------
-# Development tools
-#------------------------------------------------------------------------------
-tools: $(GOIMPORTS) $(REVIVE) $(GOCOV) $(GOCOV_XML) $(GOTESTSUM) ## Install all development tools
+# Windows builds
+windows: check-fyne-cross
+	@echo "Building for Windows..."
+	$(FYNE_CROSS) windows \
+		-arch=amd64,386 \
+		$(FYNE_FLAGS) \
+		-app-id=$(PACKAGE) \
+		-app-version=$(VERSION) \
+		-icon=$(ICON) \
+		-output $(APPNAME)
 
-fmt: $(GOIMPORTS) ## Format code
-	$(info $(M) Formatting code...)
-	$(Q) $(GOIMPORTS) -local $(MODULE) -w \
-		$(shell $(GO) list -f \
-			'{{$$d := .Dir}}{{range $$f := .GoFiles}}{{printf "%s/%s\n" $$d $$f}}{{end}}' \
-			$(PKGS))
+# Linux builds
+linux: check-fyne-cross
+	@echo "Building for Linux..."
+	$(FYNE_CROSS) linux \
+		-arch=amd64,386,arm64 \
+		$(FYNE_FLAGS) \
+		-app-id=$(PACKAGE) \
+		-app-version=$(VERSION) \
+		-icon=$(ICON) \
+		-output $(APPNAME)
 
-lint: $(REVIVE) ## Run linter
-	$(info $(M) Running linter...)
-	$(Q) $(REVIVE) -formatter friendly ./...
+# macOS builds
+darwin: check-fyne-cross
+	@echo "Building for macOS..."
+	$(FYNE_CROSS) darwin \
+		-arch=amd64,arm64 \
+		$(FYNE_FLAGS) \
+		-app-id=$(PACKAGE) \
+		-app-version=$(VERSION) \
+		-icon=$(ICON) \
+		-output $(APPNAME)
 
-test: $(GOTESTSUM) ## Run tests
-	$(info $(M) Running tests...)
-	$(Q) $(GOTESTSUM) -- -race -cover ./...
+# Android build
+# android: check-fyne-cross
+# 	@echo "Building for Android..."
+# 	$(FYNE_CROSS) android \
+# 		-app-id=$(PACKAGE) \
+# 		-app-version=$(VERSION) \
+# 		-icon=$(ICON) \
+# 		$(FYNE_FLAGS) \
+# 		-output $(APPNAME)
+android:
+	@echo "Building for Android..."
+	fyne package -os android \
+		-app-id=$(PACKAGE) \
+		-name $(APPNAME) \
+		-icon $(ICON) \
+		-release
 
-#------------------------------------------------------------------------------
-# Cleanup and utility targets
-#------------------------------------------------------------------------------
-clean: ## Clean up build artifacts
-	$(info $(M) Cleaning...)
-	$(Q) $(RM_CMD) $(BIN)
+# iOS build
+ios: check-fyne-cross
+	@echo "Building for iOS..."
+	$(FYNE_CROSS) ios \
+		-app-id=$(PACKAGE) \
+		-app-version=$(VERSION) \
+		-icon=$(ICON) \
+		$(FYNE_FLAGS) \
+		-metadata BuildForOS="ios" \
+		-output $(APPNAME)
 
-version: ## Show version information
-	@echo $(VERSION)
+# ساخت فایل‌های توزیع
+dist: all
+	@echo "Creating distribution packages..."
+	@mkdir -p $(DISTDIR)
+	@cd $(BUILDDIR) && \
+	for f in $(APPNAME)* ; do \
+		if [ -f "$$f" ]; then \
+			platform=$${f#$(APPNAME)-}; \
+			echo "Packaging $$platform..."; \
+			zip -r ../$(DISTDIR)/$(APPNAME)-$$platform-$(VERSION).zip $$f; \
+		fi \
+	done
 
-# Directory creation
-$(BIN):
-	$(Q) $(MKDIR_CMD) $(BIN)
+# ساخت نسخه توسعه
+dev:
+	@echo "Building development version..."
+	go build -v \
+		-ldflags "$(LDFLAGS)" \
+		-o $(BUILDDIR)/$(APPNAME)
 
-#------------------------------------------------------------------------------
-# Tool installation targets
-#------------------------------------------------------------------------------
-$(GOIMPORTS): | $(BIN)
-	$(info $(M) Installing goimports...)
-	$(Q) GOBIN=$(abspath $(BIN)) $(GO) install golang.org/x/tools/cmd/goimports@latest
+# نصب نسخه توسعه
+install: dev
+	@echo "Installing development version..."
+	cp $(BUILDDIR)/$(APPNAME) $(GOPATH)/bin/$(APPNAME)
 
-$(REVIVE): | $(BIN)
-	$(info $(M) Installing revive...)
-	$(Q) GOBIN=$(abspath $(BIN)) $(GO) install github.com/mgechev/revive@latest
+# اجرای تست‌ها
+test:
+	@echo "Running tests..."
+	go test -v ./...
 
-$(GOCOV): | $(BIN)
-	$(info $(M) Installing gocov...)
-	$(Q) GOBIN=$(abspath $(BIN)) $(GO) install github.com/axw/gocov/gocov@latest
+# بررسی کد
+lint:
+	@echo "Running linters..."
+	golangci-lint run
 
-$(GOCOV_XML): | $(BIN)
-	$(info $(M) Installing gocov-xml...)
-	$(Q) GOBIN=$(abspath $(BIN)) $(GO) install github.com/AlekSi/gocov-xml@latest
+# نمایش نسخه
+version:
+	@echo "$(APPNAME) version $(VERSION)"
+	@echo "Build time: $(BUILDTIME)"
+	@echo "Go version: $(GOVERSION)"
 
-$(GOTESTSUM): | $(BIN)
-	$(info $(M) Installing gotestsum...)
-	$(Q) GOBIN=$(abspath $(BIN)) $(GO) install gotest.tools/gotestsum@latest
-
-#------------------------------------------------------------------------------
-# Help
-#------------------------------------------------------------------------------
-help: ## Show this help
-	@echo "Usage: make [target]"
-	@echo ""
-	@echo "Targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
-
-.DEFAULT_GOAL := help
+# راهنما
+help:
+	@echo "Available targets:"
+	@echo "  all      - Build for all platforms"
+	@echo "  windows  - Build for Windows (386, amd64)"
+	@echo "  linux    - Build for Linux (386, amd64, arm64)"
+	@echo "  darwin   - Build for macOS (amd64, arm64)"
+	@echo "  android  - Build for Android"
+	@echo "  ios      - Build for iOS"
+	@echo "  dist     - Create distribution packages"
+	@echo "  dev      - Build development version"
+	@echo "  install  - Install development version"
+	@echo "  clean    - Clean build directories"
+	@echo "  test     - Run tests"
+	@echo "  lint     - Run linters"
+	@echo "  version  - Show version info"

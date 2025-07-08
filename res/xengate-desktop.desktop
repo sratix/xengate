@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=0.1
+Name=XenGate
+Comment=Forward any internet request via its ways.
+Path=/usr/bin
+Exec=xengate
+Terminal=false
+Icon=xengate-desktop
+Categories=Network

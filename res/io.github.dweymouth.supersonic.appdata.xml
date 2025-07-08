@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2023 anarcat <anarcat@debian.org> -->
+<component type="desktop-application">
+  <id>io.github.dweymouth.supersonic</id>
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>GPL-3.0+</project_license>
+  <name>Supersonic</name>
+  <developer_name>Drew Weymouth</developer_name>
+  <summary> A lightweight cross-platform desktop client for Subsonic and Jellyfin music servers</summary>
+  <content_rating type="oars-1.0">
+    <content_attribute id="social-audio">intense</content_attribute>
+  </content_rating>
+
+  <description>
+    <p>
+      A lightweight cross-platform desktop client for Subsonic and Jellyfin music
+      servers.
+    </p>
+
+    <p>
+      Features:
+    </p>
+    <ul>
+      <li>Fast, lightweight, native UI, with infinite scrolling</li>
+      <li>Light and Dark themes, with optional auto theme switching</li>
+      <li>High-quality gapless audio playback powered by MPV, with optional  audio exclusive mode</li>
+      <li>ReplayGain support (depends on files being tagged on server)</li>
+      <li>MPRIS and Mac OS media center integration</li>
+      <li>Scrobble plays to server, with configurable criteria</li>
+      <li>Multi-server support</li>
+      <li>Primary and alternate server hostnames, e.g. for internal and external URLs</li>
+      <li>Set filters in albums browsing view</li>
+      <li>Sort tracklist views by column and configure visible tracklist columns</li>
+      <li>Set/unset favorite and browse by favorite albums, artists, and songs</li>
+      <li>Shuffle and repeat playback modes (partial; shuffle album,  playlist, artist radio, random songs)</li>
+      <li>Internet radio station support (Subsonic)</li>
+      <li>Cast to uPnP/DLNA devices</li>
+    </ul>
+  </description>
+
+  <categories>
+    <category>Audio</category>
+  </categories>
+
+  <launchable type="desktop-id">io.github.dweymouth.supersonic.desktop</launchable>
+
+  <url type="homepage">https://github.com/dweymouth/supersonic</url>
+  <url type="bugtracker">https://github.com/dweymouth/supersonic/issues</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The options dialog</caption>
+      <image>https://raw.githubusercontent.com/dweymouth/supersonic/main/res/screenshots/AlbumsView.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.github.com/dweymouth/supersonic/main/res/screenshots/AlbumView.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.github.com/dweymouth/supersonic/main/res/screenshots/ArtistView.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.github.com/dweymouth/supersonic/main/res/screenshots/FavoriteSongsView.png</image>
+    </screenshot>
+  </screenshots>
+
+ <releases>
+  <release date="2025-06-16" version="0.16.0">
+   <description>
+     <p>
+       Version 0.16.0 of Supersonic
+     </p>
+
+     <p>
+       Added
+     </p>
+     <ul>
+       <li>Add click-to-seek to lyrics viewer for synced lyrics</li>
+       <li>Allow customization of grid card size</li>
+       <li>Add setting to request transcoding to a specific format/bitrate from server</li>
+       <li>Japanese translation improvements</li>
+     </ul>
+
+     <p>
+       Fixed
+     </p>
+     <ul>
+       <li>New setting to disable OS Now Playing APIs - workaround for Windows SMTC bugginess</li>
+       <li>Crashing with custom themes that change the Primary color</li>
+       <li>Incorrect tracks removed from playlist if removing from searched view</li>
+     </ul>
+
+   </description>
+  </release>
+ </releases>
+
+</component>
