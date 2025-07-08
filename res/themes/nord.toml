@@ -1,0 +1,29 @@
+[SupersonicTheme]
+Name = "Nord"
+Version = "0.2"
+SupportsDark = true
+SupportsLight = true
+
+[DarkColors]
+PageBackground = "#2E3440"
+ListHeader = "#3B4252"
+PageHeader = "#3B4252"
+Background = "#3B4252"
+ScrollBar = "#4C566A"
+Button = "#434C5E32"
+InputBackground = "#434C5E32"
+Hyperlink = "#81A1C1"
+Pressed = "#5E81AC"
+Foreground = "#E5E9F0"
+
+[LightColors]
+PageBackground = "#E5E9F0"
+ListHeader = "#D8DEE9"
+PageHeader = "#D8DEE9"
+Background = "#D8DEE9"
+ScrollBar = "#D8DEE9"
+Button = "#ECEFF4F0"
+DisabledButton = "#D8DEE9F0"
+Foreground = "#3B4252"
+Hyperlink = "#4C566A"
+Pressed = "#5E81AC"

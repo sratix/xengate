@@ -92,7 +92,7 @@ func (a *AboutDialog) buildCreditsContainer() fyne.CanvasObject {
 	goSubsonicURL, _ := url.Parse("https://github.com/delucks/go-subsonic")
 	goTomlURL, _ := url.Parse("https://github.com/pelletier/go-toml")
 	freepikURL, _ := url.Parse("https://www.flaticon.com/authors/freepik")
-	appIconCredit := widget.NewLabel("The Xengate app icon is a derivative of a work created by Piotr Siedlecki and placed in the public domain.")
+	appIconCredit := widget.NewLabel("The Xengate app icon is a derivative of a work created by Ximbesto Xandros and placed in the public domain.")
 	appIconCredit.Wrapping = fyne.TextWrapWord
 	return container.New(layout.NewCustomPaddedVBoxLayout(theme.Padding()-10),
 		widget.NewLabel("Major frameworks and modules used in this application include:"),

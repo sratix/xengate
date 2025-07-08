@@ -42,26 +42,26 @@ var (
 	GridViewHoveredIconColor color.Color = color.White
 	GridViewIconColor        color.Color = darkenColor(color.White, 0.2)
 
-	AlbumIcon         fyne.Resource = theme.NewThemedResource(res.ResDiscSvg)
-	ArtistIcon        fyne.Resource = theme.NewThemedResource(res.ResPeopleSvg)
-	AutoplayIcon      fyne.Resource = theme.NewThemedResource(res.ResInfinitySvg)
-	CastIcon          fyne.Resource = theme.NewThemedResource(res.ResCastSvg)
-	RadioIcon         fyne.Resource = theme.NewThemedResource(res.ResBroadcastSvg)
-	FavoriteIcon      fyne.Resource = theme.NewThemedResource(res.ResHeartFilledSvg)
-	NotFavoriteIcon   fyne.Resource = theme.NewThemedResource(res.ResHeartOutlineSvg)
-	NowPlayingIcon    fyne.Resource = theme.NewThemedResource(res.ResHeadphonesSvg)
-	PlaylistIcon      fyne.Resource = theme.NewThemedResource(res.ResPlaylistSvg)
-	PlayNextIcon      fyne.Resource = theme.NewThemedResource(res.ResPlaylistAddNextSvg)
-	PlayQueueIcon     fyne.Resource = theme.NewThemedResource(res.ResPlayqueueSvg)
-	ShareIcon         fyne.Resource = theme.NewThemedResource(res.ResShareSvg)
-	ShuffleIcon       fyne.Resource = theme.NewThemedResource(res.ResShuffleSvg)
-	TracksIcon        fyne.Resource = theme.NewThemedResource(res.ResMusicnotesSvg)
-	GenreIcon         fyne.Resource = theme.NewThemedResource(res.ResTheatermasksSvg)
-	FilterIcon        fyne.Resource = theme.NewThemedResource(res.ResFilterSvg)
-	RepeatIcon        fyne.Resource = theme.NewThemedResource(res.ResRepeatSvg)
-	RepeatOneIcon     fyne.Resource = theme.NewThemedResource(res.ResRepeatoneSvg)
-	SortIcon          fyne.Resource = theme.NewThemedResource(res.ResUpdownarrowSvg)
-	VisualizationIcon fyne.Resource = theme.NewThemedResource(res.ResOscilloscopeSvg)
+	// AlbumIcon         fyne.Resource = theme.NewThemedResource(res.ResDiscSvg)
+	// ArtistIcon        fyne.Resource = theme.NewThemedResource(res.ResPeopleSvg)
+	// AutoplayIcon      fyne.Resource = theme.NewThemedResource(res.ResInfinitySvg)
+	// CastIcon          fyne.Resource = theme.NewThemedResource(res.ResCastSvg)
+	// RadioIcon         fyne.Resource = theme.NewThemedResource(res.ResBroadcastSvg)
+	// FavoriteIcon      fyne.Resource = theme.NewThemedResource(res.ResHeartFilledSvg)
+	// NotFavoriteIcon   fyne.Resource = theme.NewThemedResource(res.ResHeartOutlineSvg)
+	// NowPlayingIcon    fyne.Resource = theme.NewThemedResource(res.ResHeadphonesSvg)
+	// PlaylistIcon      fyne.Resource = theme.NewThemedResource(res.ResPlaylistSvg)
+	// PlayNextIcon      fyne.Resource = theme.NewThemedResource(res.ResPlaylistAddNextSvg)
+	// PlayQueueIcon     fyne.Resource = theme.NewThemedResource(res.ResPlayqueueSvg)
+	ShareIcon fyne.Resource = theme.NewThemedResource(res.ResShareSvg)
+	// ShuffleIcon       fyne.Resource = theme.NewThemedResource(res.ResShuffleSvg)
+	// TracksIcon        fyne.Resource = theme.NewThemedResource(res.ResMusicnotesSvg)
+	// GenreIcon         fyne.Resource = theme.NewThemedResource(res.ResTheatermasksSvg)
+	// FilterIcon        fyne.Resource = theme.NewThemedResource(res.ResFilterSvg)
+	// RepeatIcon        fyne.Resource = theme.NewThemedResource(res.ResRepeatSvg)
+	// RepeatOneIcon     fyne.Resource = theme.NewThemedResource(res.ResRepeatoneSvg)
+	// SortIcon          fyne.Resource = theme.NewThemedResource(res.ResUpdownarrowSvg)
+	// VisualizationIcon fyne.Resource = theme.NewThemedResource(res.ResOscilloscopeSvg)
 )
 
 type AppearanceMode string
@@ -95,7 +95,7 @@ var _ fyne.Theme = (*MyTheme)(nil)
 func NewMyTheme(config *backend.ThemeConfig, themeFileDir string) *MyTheme {
 	m := &MyTheme{config: config, themeFileDir: themeFileDir}
 	var err error
-	if m.defaultThemeFile, err = DecodeThemeFile(bytes.NewReader(res.ResDefaultToml.StaticContent)); err != nil {
+	if m.defaultThemeFile, err = DecodeThemeFile(bytes.NewReader(res.ResNordToml.StaticContent)); err != nil {
 		log.Fatalf("Failed to load builtin theme: %v", err.Error())
 	}
 	return m

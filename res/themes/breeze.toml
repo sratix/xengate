@@ -1,0 +1,23 @@
+[SupersonicTheme]
+Name = "Breeze"
+Version = "0.1"
+SupportsDark = true
+SupportsLight = true
+
+[DarkColors]
+PageBackground = "#1A1D1F"
+ListHeader = "#31363B"
+PageHeader = "#292D32"
+Background = "#31363B"
+ScrollBar = "#316D8E"
+Button = "#31363B"
+InputBackground = "#31363B"
+
+[LightColors]
+PageBackground = "#FFFFFF"
+ListHeader = "#DDE0E2"
+PageHeader = "#EFF0F1"
+Background = "#DDE0E2"
+ScrollBar = "#316D8E"
+Button = "#DDE0E2"
+InputBackground = "#DDE0E2"
