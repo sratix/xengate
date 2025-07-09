@@ -91,6 +91,8 @@ type ThemeColors struct {
 	Success string
 
 	Warning string
+
+	TextMuted string
 }
 
 func ReadThemeFile(filePath string) (*ThemeFile, error) {

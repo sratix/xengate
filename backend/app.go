@@ -35,8 +35,6 @@ var (
 type App struct {
 	Config *Config
 
-	Storage           *AppStorage
-	
 	// UI callbacks to be set in main
 	OnReactivate func()
 	OnExit       func()

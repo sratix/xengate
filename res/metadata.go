@@ -9,7 +9,7 @@ const (
 	GithubURL        = "https://github.com/dweymouth/supersonic"
 	LatestReleaseURL = GithubURL + "/releases/latest"
 	KofiURL          = "https://ko-fi.com/dweymouth"
-	Copyright        = "Copyright © 2024–2025 Drew Weymouth and contributors"
+	Copyright        = "Copyright © 2024–2025 Ximbesto Xandros and contributors"
 )
 
 var (

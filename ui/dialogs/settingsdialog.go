@@ -141,18 +141,18 @@ func (s *SettingsDialog) createGeneralTab() *container.TabItem {
 		// albumGridYears,
 		s.newSectionSeparator(),
 
-		widget.NewRichText(&widget.TextSegment{Text: "Scrobbling", Style: util.BoldRichTextStyle}),
-		// scrobbleEnabled,
-		container.NewHBox(
-			widget.NewLabel(lang.L("Scrobble when")),
-			// percentEntry,
-			widget.NewLabel(lang.L("percent of track is played")),
-		),
-		container.NewHBox(
-			// durationEnabled,
-			// durationEntry,
-			widget.NewLabel(lang.L("minutes of track have been played")),
-		),
+		// widget.NewRichText(&widget.TextSegment{Text: "Scrobbling", Style: util.BoldRichTextStyle}),
+		// // scrobbleEnabled,
+		// container.NewHBox(
+		// 	widget.NewLabel(lang.L("Scrobble when")),
+		// 	// percentEntry,
+		// 	widget.NewLabel(lang.L("percent of track is played")),
+		// ),
+		// container.NewHBox(
+		// 	// durationEnabled,
+		// 	// durationEntry,
+		// 	widget.NewLabel(lang.L("minutes of track have been played")),
+		// ),
 	))
 }
 
@@ -239,15 +239,15 @@ func (s *SettingsDialog) createAppearanceTab(window fyne.Window) *container.TabI
 	})
 	disableDPI.Checked = s.config.Application.DisableDPIDetection
 
-	gridCardSize := widget.NewSlider(150, 350)
-	gridCardSize.SetValue(float64(s.config.GridView.CardSize))
-	gridCardSize.Step = 10
-	gridCardSize.OnChanged = func(f float64) {
-		s.config.GridView.CardSize = float32(f)
-		if s.OnPageNeedsRefresh != nil {
-			s.OnPageNeedsRefresh()
-		}
-	}
+	// gridCardSize := widget.NewSlider(150, 350)
+	// gridCardSize.SetValue(float64(s.config.GridView.CardSize))
+	// gridCardSize.Step = 10
+	// gridCardSize.OnChanged = func(f float64) {
+	// 	s.config.GridView.CardSize = float32(f)
+	// 	if s.OnPageNeedsRefresh != nil {
+	// 		s.OnPageNeedsRefresh()
+	// 	}
+	// }
 
 	return container.NewTabItem(lang.L("Appearance"), container.NewVBox(
 		util.NewHSpace(0), // insert a theme.Padding amount of space at top
@@ -257,7 +257,7 @@ func (s *SettingsDialog) createAppearanceTab(window fyne.Window) *container.TabI
 		),
 		widget.NewRichText(&widget.TextSegment{Text: lang.L("UI Scaling"), Style: util.BoldRichTextStyle}),
 		uiScaleRadio,
-		container.NewBorder(nil, nil, widget.NewLabel(lang.L("Grid card size")), nil, gridCardSize),
+		// container.NewBorder(nil, nil, widget.NewLabel(lang.L("Grid card size")), nil, gridCardSize),
 		disableDPI,
 		s.newSectionSeparator(),
 		widget.NewRichText(&widget.TextSegment{Text: lang.L("Application font"), Style: util.BoldRichTextStyle}),

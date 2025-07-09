@@ -15,6 +15,7 @@ InputBackground = "#434C5E32"
 Hyperlink = "#81A1C1"
 Pressed = "#5E81AC"
 Foreground = "#E5E9F0"
+TextMuted = "#8C8C8C"
 
 [LightColors]
 PageBackground = "#E5E9F0"
@@ -27,3 +28,4 @@ DisabledButton = "#D8DEE9F0"
 Foreground = "#3B4252"
 Hyperlink = "#4C566A"
 Pressed = "#5E81AC"
+TextMuted = "#8A8A8A"

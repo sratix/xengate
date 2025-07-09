@@ -28,6 +28,7 @@ const (
 	ColorNameIconButton        fyne.ThemeColorName = "IconButton"
 	ColorNameHoveredIconButton fyne.ThemeColorName = "HoveredIconButton"
 	ColorNameNowPlayingPanel   fyne.ThemeColorName = "NowPlayingPanel"
+	ColorNameTextMuted         fyne.ThemeColorName = "TextMuted"
 
 	SizeNameSubSubHeadingText fyne.ThemeSizeName = "subSubHeadingText" // in between Text and SubHeadingText
 	SizeNameSubText           fyne.ThemeSizeName = "subText"           // in between Text and Caption
@@ -153,6 +154,8 @@ func (m *MyTheme) Color(name fyne.ThemeColorName, defVariant fyne.ThemeVariant) 
 		return colorOrDefault(colors.ListHeader, defColors.ListHeader, name, variant)
 	case ColorNamePageBackground:
 		return colorOrDefault(colors.PageBackground, defColors.PageBackground, name, variant)
+	case ColorNameTextMuted:
+		return colorOrDefault(colors.TextMuted, defColors.TextMuted, name, variant)
 	case ColorNamePageHeader:
 		return colorOrDefault(colors.PageHeader, defColors.PageHeader, name, variant)
 	case theme.ColorNameBackground:

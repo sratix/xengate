@@ -3,7 +3,7 @@ package ui
 import (
 	"errors"
 
-	"xengate/backend"
+	"xengate/internal/storage"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
@@ -19,10 +19,10 @@ const (
 type MasterPasswordManager struct {
 	app     fyne.App
 	window  fyne.Window
-	storage *backend.AppStorage
+	storage *storage.AppStorage
 }
 
-func NewMasterPasswordManager(app fyne.App, window fyne.Window, storage *backend.AppStorage) *MasterPasswordManager {
+func NewMasterPasswordManager(app fyne.App, window fyne.Window, storage *storage.AppStorage) *MasterPasswordManager {
 	return &MasterPasswordManager{
 		app:     app,
 		window:  window,

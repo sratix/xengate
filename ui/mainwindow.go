@@ -174,7 +174,18 @@ func (m *MainWindow) initToolbar() {
 			Type:   "SSH",
 			Status: models.StatusInactive,
 		}
-		components.ShowEditDialog("Add New Connection", m.Window, newConn, m.connectionList, m.fyneApp)
+		// dialogs.ShowEditDialog("Add New Connection", m.Window, newConn, m.connectionList, m.fyneApp)
+
+		dlg := dialogs.NewEditDialog(newConn)
+		pop := widget.NewModalPopUp(dlg, m.Canvas())
+		dlg.OnDismiss = func() {
+			pop.Hide()
+			m.doModalClosed()
+			m.App.SaveConfigFile()
+		}
+		m.closePopUpOnEscape(pop)
+		m.haveModal = true
+		pop.Show()
 	})
 	m.actToggleFullScreen = widget.NewToolbarAction(theme.ViewFullScreenIcon(), m.toggleFullScreen)
 	m.actSettings = widget.NewToolbarAction(theme.SettingsIcon(), func() {
@@ -183,7 +194,6 @@ func (m *MainWindow) initToolbar() {
 		dlg.OnThemeSettingChanged = func() {
 			fyne.CurrentApp().Settings().SetTheme(m.theme)
 		}
-		// dlg.OnPageNeedsRefresh = c.RefreshPageFunc
 		pop := widget.NewModalPopUp(dlg, m.Canvas())
 		dlg.OnDismiss = func() {
 			pop.Hide()
@@ -213,8 +223,8 @@ func (m *MainWindow) initToolbar() {
 	m.toolBar.Append(m.actAdd)
 	m.toolBar.Append(widget.NewToolbarSeparator())
 	m.toolBar.Append(widget.NewToolbarSpacer())
-	m.toolBar.Append(widget.NewToolbarSeparator())
-	m.toolBar.Append(m.actToggleFullScreen)
+	// m.toolBar.Append(widget.NewToolbarSeparator())
+	// m.toolBar.Append(m.actToggleFullScreen)
 	m.toolBar.Append(widget.NewToolbarSeparator())
 	m.toolBar.Append(m.actSettings)
 	m.toolBar.Append(m.actAbout)

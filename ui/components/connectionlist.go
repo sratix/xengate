@@ -2,11 +2,9 @@ package components
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"image/color"
 	"os"
-	"strconv"
 
 	"xengate/internal/models"
 	"xengate/ui/layouts"
@@ -57,11 +55,11 @@ func NewConnectionList(app fyne.App, window fyne.Window) *ConnectionList {
 }
 
 func (l *ConnectionList) loadConnections() {
-	config := loadConfig()
+	config := LoadConfig()
 	l.connections = config.Connections
 }
 
-func loadConfig() *Config {
+func LoadConfig() *Config {
 	data, err := os.ReadFile(configFile)
 	if err != nil {
 		return &Config{Connections: make([]*models.Connection, 0)}
@@ -75,7 +73,7 @@ func loadConfig() *Config {
 	return &config
 }
 
-func saveConfig(config *Config) error {
+func SaveConfig(config *Config) error {
 	data, err := json.MarshalIndent(config, "", "    ")
 	if err != nil {
 		return err
@@ -99,7 +97,7 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 		statusColor = color.NRGBA{R: 254, G: 138, B: 129, A: 255}
 	}
 
-	mainBg := myTheme.NewThemedRectangle(myTheme.ColorNameNowPlayingPanel)
+	mainBg := myTheme.NewThemedRectangle(myTheme.ColorNamePageBackground)
 
 	leftBorder := canvas.NewRectangle(statusColor)
 	leftBorder.SetMinSize(fyne.NewSize(6, itemHeight))
@@ -110,11 +108,7 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 	addressLabel := widget.NewLabel(fmt.Sprintf("%s:%s", conn.Address, conn.Port))
 	addressLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
-	typeLabel := widget.NewLabelWithStyle(
-		fmt.Sprintf("(%s)", conn.Type),
-		fyne.TextAlignTrailing,
-		fyne.TextStyle{Italic: true},
-	)
+	typeLabel := NewBadge(conn.Type, fyne.CurrentApp().Settings().Theme().Color(myTheme.ColorNameTextMuted, fyne.CurrentApp().Settings().ThemeVariant()))
 
 	shareBtn := widget.NewButtonWithIcon("", myTheme.ShareIcon, func() {
 		if r.list.onShare != nil {
@@ -123,7 +117,7 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 	})
 
 	editBtn := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {
-		ShowEditDialog("Edit Connection", r.list.Window, conn, r.list, r.list.App)
+		// ShowEditDialog("Edit Connection", r.list.Window, conn, r.list, r.list.App)
 	})
 
 	deleteBtn := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
@@ -136,14 +130,13 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 		container.NewHBox(
 			nameLabel,
 			layout.NewSpacer(),
-			shareBtn,
-			editBtn,
-			deleteBtn,
+			container.NewPadded(container.NewHBox(
+				shareBtn,
+				editBtn,
+				deleteBtn)),
 		),
 		container.NewHBox(
-			addressLabel,
-			layout.NewSpacer(),
-			typeLabel,
+			addressLabel, typeLabel,
 		),
 	)
 
@@ -164,14 +157,14 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 			conn.Status = models.StatusInactive
 		}
 
-		appConfig := loadConfig()
+		appConfig := LoadConfig()
 		for i, c := range appConfig.Connections {
 			if c.Address == conn.Address && c.Port == conn.Port {
 				appConfig.Connections[i].Status = conn.Status
 				break
 			}
 		}
-		if err := saveConfig(appConfig); err != nil {
+		if err := SaveConfig(appConfig); err != nil {
 			dialog.ShowError(err, r.list.Window)
 			return
 		}
@@ -186,162 +179,10 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 		content,
 	)
 
-	// ایجاد کانتینر با پدینگ بالا و پایین برای مارجین
 	return container.New(
 		&layouts.MarginLayout{MarginTop: 6, MarginBottom: 6},
 		mainStack,
 	)
-}
-
-func ShowEditDialog(title string, window fyne.Window, conn *models.Connection, list *ConnectionList, app fyne.App) {
-	w := app.NewWindow(title)
-	w.CenterOnScreen()
-
-	nameEntry, addressEntry, portEntry := widget.NewEntry(), widget.NewEntry(), widget.NewEntry()
-	userEntry, passwordEntry := widget.NewEntry(), widget.NewPasswordEntry()
-	connectionsEntry, maxRetriesEntry := widget.NewEntry(), widget.NewEntry()
-	proxyAddrEntry, proxyPortEntry := widget.NewEntry(), widget.NewEntry()
-	proxyModeSelect := widget.NewSelect([]string{"socks5", "http"}, nil)
-
-	connectionsEntry.SetText("3")
-	maxRetriesEntry.SetText("3")
-	proxyAddrEntry.SetText("127.0.0.1")
-	proxyPortEntry.SetText("1080")
-	proxyModeSelect.SetSelected("socks5")
-
-	if conn != nil {
-		nameEntry.SetText(conn.Name)
-		addressEntry.SetText(conn.Address)
-		portEntry.SetText(conn.Port)
-
-		if conn.Config != nil {
-			userEntry.SetText(conn.Config.User)
-			passwordEntry.SetText(conn.Config.Password)
-			connectionsEntry.SetText(fmt.Sprintf("%d", conn.Config.Connections))
-			maxRetriesEntry.SetText(fmt.Sprintf("%d", conn.Config.MaxRetries))
-			proxyAddrEntry.SetText(conn.Config.Proxy.ListenAddr)
-			proxyPortEntry.SetText(fmt.Sprintf("%d", conn.Config.Proxy.ListenPort))
-			proxyModeSelect.SetSelected(conn.Config.Proxy.Mode)
-		}
-	}
-
-	saveBtn := widget.NewButtonWithIcon("Save Connection", theme.DocumentSaveIcon(), nil)
-	saveBtn.Importance = widget.HighImportance
-	cancelBtn := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() { w.Close() })
-	buttons := container.NewHBox(layout.NewSpacer(), cancelBtn, widget.NewSeparator(), saveBtn)
-
-	basicInfo := widget.NewForm(&widget.FormItem{Text: "Name", Widget: nameEntry})
-
-	serverInfo := container.NewGridWithColumns(2,
-		widget.NewForm(&widget.FormItem{Text: "Address", Widget: addressEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Port", Widget: portEntry}),
-	)
-	basicCard := widget.NewCard("Basic Information", "Connection details",
-		container.NewVBox(basicInfo, serverInfo),
-	)
-
-	authInfo := container.NewGridWithColumns(2,
-		widget.NewForm(&widget.FormItem{Text: "Username", Widget: userEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Password", Widget: passwordEntry}),
-	)
-	authCard := widget.NewCard("Authentication", "User credentials",
-		container.NewPadded(authInfo),
-	)
-
-	connectionSettings := container.NewGridWithColumns(2,
-		widget.NewForm(&widget.FormItem{Text: "Parallel Connections", Widget: connectionsEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Max Retries", Widget: maxRetriesEntry}),
-	)
-	connectionCard := widget.NewCard("Connection Settings", "Advanced configuration",
-		container.NewPadded(connectionSettings),
-	)
-
-	proxySettings := container.NewGridWithColumns(3,
-		widget.NewForm(&widget.FormItem{Text: "Address", Widget: proxyAddrEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Port", Widget: proxyPortEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Mode", Widget: proxyModeSelect}),
-	)
-	proxyCard := widget.NewCard("Proxy Settings", "Proxy server configuration",
-		container.NewPadded(proxySettings),
-	)
-
-	saveBtn.OnTapped = func() {
-		if nameEntry.Text == "" || addressEntry.Text == "" || portEntry.Text == "" {
-			dialog.ShowError(errors.New("name, address and port are required"), w)
-			return
-		}
-
-		port, err := strconv.Atoi(portEntry.Text)
-		if err != nil {
-			dialog.ShowError(errors.New("invalid port number"), w)
-			return
-		}
-
-		connections, _ := strconv.Atoi(connectionsEntry.Text)
-		maxRetries, _ := strconv.Atoi(maxRetriesEntry.Text)
-		proxyPort, _ := strconv.Atoi(proxyPortEntry.Text)
-
-		if connections <= 0 {
-			connections = 3
-		}
-		if maxRetries <= 0 {
-			maxRetries = 3
-		}
-		if proxyPort <= 0 {
-			proxyPort = 1080
-		}
-
-		config := &models.ServerConfig{
-			Name: nameEntry.Text, Host: addressEntry.Text, Port: port,
-			User: userEntry.Text, Password: passwordEntry.Text,
-			MaxRetries: maxRetries,
-			Proxy: models.ProxyConfig{
-				ListenAddr: proxyAddrEntry.Text,
-				ListenPort: proxyPort,
-				Mode:       proxyModeSelect.Selected,
-			},
-		}
-
-		conn.Name = nameEntry.Text
-		conn.Address = addressEntry.Text
-		conn.Port = portEntry.Text
-		conn.Config = config
-
-		appConfig := loadConfig()
-		found := false
-		for i, c := range appConfig.Connections {
-			if c.Address == conn.Address && c.Port == conn.Port {
-				appConfig.Connections[i] = conn
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			appConfig.Connections = append(appConfig.Connections, conn)
-		}
-
-		if err := saveConfig(appConfig); err != nil {
-			dialog.ShowError(err, w)
-			return
-		}
-
-		list.Refresh()
-		w.Close()
-		dialog.ShowInformation("Success", "Connection saved successfully", window)
-	}
-
-	content := container.NewPadded(container.NewVBox(
-		basicCard, widget.NewSeparator(),
-		authCard, widget.NewSeparator(),
-		connectionCard, widget.NewSeparator(),
-		proxyCard, widget.NewSeparator(),
-		buttons,
-	))
-
-	w.SetContent(content)
-	w.Resize(content.MinSize())
-	w.Show()
 }
 
 func (r *connectionListRenderer) rebuild() {
@@ -379,9 +220,9 @@ func (r *connectionListRenderer) Destroy() {}
 
 func (l *ConnectionList) AddConnection(conn *models.Connection) {
 	l.connections = append(l.connections, conn)
-	config := loadConfig()
+	config := LoadConfig()
 	config.Connections = append(config.Connections, conn)
-	if err := saveConfig(config); err != nil {
+	if err := SaveConfig(config); err != nil {
 		dialog.ShowError(err, l.Window)
 		return
 	}
@@ -396,7 +237,7 @@ func (l *ConnectionList) RemoveConnection(conn *models.Connection) {
 		}
 	}
 
-	config := loadConfig()
+	config := LoadConfig()
 	for i, c := range config.Connections {
 		if c.Address == conn.Address && c.Port == conn.Port {
 			config.Connections = append(config.Connections[:i], config.Connections[i+1:]...)
@@ -404,7 +245,7 @@ func (l *ConnectionList) RemoveConnection(conn *models.Connection) {
 		}
 	}
 
-	if err := saveConfig(config); err != nil {
+	if err := SaveConfig(config); err != nil {
 		dialog.ShowError(err, l.Window)
 		return
 	}
