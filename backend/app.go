@@ -13,9 +13,9 @@ import (
 	"runtime"
 	"time"
 
-	"xengate/backend/util"
+	"xengate/internal/storage"
 
-	"github.com/20after4/configdir"
+	"fyne.io/fyne/v2"
 )
 
 const (
@@ -35,6 +35,9 @@ var (
 type App struct {
 	Config *Config
 
+	// Storage handling
+	storage *storage.AppStorage
+
 	// UI callbacks to be set in main
 	OnReactivate func()
 	OnExit       func()
@@ -42,8 +45,6 @@ type App struct {
 	appName        string
 	displayAppName string
 	appVersionTag  string
-	configDir      string
-	cacheDir       string
 	portableMode   bool
 
 	isFirstLaunch bool // set by config file reader
@@ -59,61 +60,45 @@ func (a *App) VersionTag() string {
 	return a.appVersionTag
 }
 
-func StartupApp(appName, displayAppName, appVersion, appVersionTag, latestReleaseURL string) (*App, error) {
-	var confDir, cacheDir string
+func StartupApp(app fyne.App, appName, displayAppName, appVersion, appVersionTag, latestReleaseURL string) (*App, error) {
+	// Initialize storage
+	appStorage, err := storage.NewAppStorage(app)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize storage: %v", err)
+	}
+
 	portableMode := false
 	if p := checkPortablePath(); p != "" {
-		confDir = path.Join(p, "config")
-		cacheDir = path.Join(p, "cache")
 		portableMode = true
-	} else {
-		confDir = configdir.LocalConfig(appName)
-		cacheDir = configdir.LocalCache(appName)
 	}
-	// ensure config and cache dirs exist
-	configdir.MakePath(confDir)
-	configdir.MakePath(cacheDir)
 
 	var logFile *os.File
 	if isWindowsGUI() {
 		// Can't log to console in Windows GUI app so log to file instead
-		if f, err := os.Create(filepath.Join(confDir, "xengate.log")); err == nil {
+		logPath := filepath.Join(appStorage.ConfigPath(), "xengate.log")
+		if f, err := os.Create(logPath); err == nil {
 			log.SetOutput(f)
 			logFile = f
 		}
 	}
 
 	a := &App{
+		storage:        appStorage,
 		logFile:        logFile,
 		appName:        appName,
 		displayAppName: displayAppName,
 		appVersionTag:  appVersionTag,
-		configDir:      confDir,
-		cacheDir:       cacheDir,
 		portableMode:   portableMode,
 	}
+
 	a.bgrndCtx, a.cancel = context.WithCancel(context.Background())
 	a.readConfig()
 
 	log.Printf("Starting %s...", appName)
-	log.Printf("Using config dir: %s", confDir)
-	log.Printf("Using cache dir: %s", cacheDir)
+	log.Printf("Using config dir: %s", appStorage.ConfigPath())
+	log.Printf("Using cache dir: %s", appStorage.CachePath())
 
 	a.Config.Application.MaxImageCacheSizeMB = clamp(a.Config.Application.MaxImageCacheSizeMB, 1, 500)
-
-	// // Periodically scan for remote players
-	// go func() {
-	// 	t := time.NewTicker(5 * time.Minute)
-	// 	for {
-	// 		select {
-	// 		case <-a.bgrndCtx.Done():
-	// 			t.Stop()
-	// 			return
-	// 		case <-t.C:
-	// 			a.PlaybackManager.ScanRemotePlayers(a.bgrndCtx, false)
-	// 		}
-	// 	}
-	// }()
 
 	a.startConfigWriter(a.bgrndCtx)
 
@@ -134,7 +119,7 @@ func (a *App) IsPortableMode() bool {
 }
 
 func (a *App) ThemesDir() string {
-	return filepath.Join(a.configDir, themesDir)
+	return filepath.Join(a.storage.ConfigPath(), themesDir)
 }
 
 func checkPortablePath() string {
@@ -149,25 +134,22 @@ func checkPortablePath() string {
 
 func (a *App) readConfig() {
 	cfgPath := a.configFilePath()
-	var cfgExists bool
-	if _, err := os.Stat(cfgPath); err == nil {
-		cfgExists = true
-	}
-	a.isFirstLaunch = !cfgExists
+	a.isFirstLaunch = !a.storage.FileExists(cfgPath)
+
 	cfg, err := ReadConfigFile(cfgPath, a.appVersionTag)
 	if err != nil {
 		log.Printf("Error reading app config file: %v", err)
 		cfg = DefaultConfig(a.appVersionTag)
-		if cfgExists {
+		if !a.isFirstLaunch {
 			backupCfgName := fmt.Sprintf("%s.bak", configFile)
+			backupPath := filepath.Join(a.storage.ConfigPath(), backupCfgName)
 			log.Printf("Config file may be malformed: copying to %s", backupCfgName)
-			_ = util.CopyFile(cfgPath, path.Join(a.configDir, backupCfgName))
+			_ = a.storage.CopyFile(cfgPath, backupPath)
 		}
 	}
 	a.Config = cfg
 }
 
-// periodically save config file so abnormal exit won't lose settings
 func (a *App) startConfigWriter(ctx context.Context) {
 	tick := time.NewTicker(2 * time.Minute)
 	go func() {
@@ -177,8 +159,7 @@ func (a *App) startConfigWriter(ctx context.Context) {
 			return
 		case <-tick.C:
 			if !reflect.DeepEqual(&a.lastWrittenCfg, a.Config) {
-				a.Config.WriteConfigFile(a.configFilePath())
-				a.lastWrittenCfg = *a.Config
+				a.SaveConfigFile()
 			}
 		}
 	}()
@@ -208,6 +189,14 @@ func (a *App) Shutdown() {
 
 	a.SaveConfigFile()
 
+	// بررسی سایز کش قبل از پاکسازی
+	if cacheSize, err := a.storage.GetCacheSize(); err == nil {
+		maxSize := int64(a.Config.Application.MaxImageCacheSizeMB) * 1024 * 1024
+		if cacheSize > maxSize {
+			_ = a.storage.ClearCache()
+		}
+	}
+
 	a.cancel()
 }
 
@@ -217,9 +206,10 @@ func (a *App) SaveConfigFile() {
 }
 
 func (a *App) configFilePath() string {
-	return path.Join(a.configDir, configFile)
+	return filepath.Join(a.storage.ConfigPath(), configFile)
 }
 
+// Helper functions remain unchanged
 func clamp(i, min, max int) int {
 	if i < min {
 		i = min
@@ -234,8 +224,6 @@ func isWindowsGUI() bool {
 		return false
 	}
 
-	// check executable for windows GUI flag
-	// https://stackoverflow.com/questions/58813512/is-it-possible-to-detect-if-go-binary-was-compiled-with-h-windowsgui-at-runtime
 	fileName, err := os.Executable()
 	if err != nil {
 		return false

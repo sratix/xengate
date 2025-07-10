@@ -171,16 +171,22 @@ func (m *MainWindow) initToolbar() {
 	m.actAdd = widget.NewToolbarAction(theme.ContentAddIcon(), func() {
 		newConn := &models.Connection{
 			Name:   "New Connection",
-			Type:   "SSH",
+			Port:   "22",
 			Status: models.StatusInactive,
 		}
-		// dialogs.ShowEditDialog("Add New Connection", m.Window, newConn, m.connectionList, m.fyneApp)
 
-		dlg := dialogs.NewEditDialog(newConn)
+		dlg := dialogs.NewEditDialog(
+			newConn,
+			m.connectionList.GetConfigManager(),
+			m.Window,
+		)
+
 		pop := widget.NewModalPopUp(dlg, m.Canvas())
 		dlg.OnDismiss = func() {
 			pop.Hide()
 			m.doModalClosed()
+			m.connectionList.LoadConnections()
+			m.connectionList.Refresh()
 			m.App.SaveConfigFile()
 		}
 		m.closePopUpOnEscape(pop)

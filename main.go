@@ -17,7 +17,19 @@ import (
 )
 
 func main() {
-	myApp, err := backend.StartupApp(res.AppName, res.DisplayName, res.AppVersion, res.AppVersionTag, res.LatestReleaseURL)
+	// Create Fyne app first
+	fyneApp := app.New()
+	fyneApp.SetIcon(fyne.NewStaticResource("icon", ui.Go2TVIcon512))
+
+	// Then initialize backend
+	myApp, err := backend.StartupApp(
+		fyneApp,
+		res.AppName,
+		res.DisplayName,
+		res.AppVersion,
+		res.AppVersionTag,
+		res.LatestReleaseURL,
+	)
 	if err != nil {
 		if err != backend.ErrAnotherInstance {
 			log.Fatalf("fatal startup error: %v", err.Error())
@@ -45,8 +57,6 @@ func main() {
 		tr := res.TranslationsInfo[lIdx]
 		content, err := res.Translations.ReadFile("translations/" + tr.TranslationFileName)
 		if err == nil {
-			// "trick" Fyne into loading translations for configured language
-			// by pretending it's the translation for the system locale
 			name := lang.SystemLocale().LanguageString()
 			lang.AddTranslations(fyne.NewStaticResource(name+".json", content))
 			success = true
@@ -59,9 +69,6 @@ func main() {
 			log.Printf("Error loading translations: %s", err.Error())
 		}
 	}
-
-	fyneApp := app.New()
-	fyneApp.SetIcon(fyne.NewStaticResource("icon", ui.Go2TVIcon512))
 
 	mainWindow := ui.NewMainWindow(fyneApp, res.AppName, res.DisplayName, res.AppVersion, myApp)
 	mainWindow.Window.SetMaster()

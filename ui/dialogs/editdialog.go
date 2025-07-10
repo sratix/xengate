@@ -1,14 +1,16 @@
 package dialogs
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
+	"xengate/internal/common"
 	"xengate/internal/models"
-	"xengate/ui/components"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -16,314 +18,230 @@ import (
 
 type EditDialog struct {
 	widget.BaseWidget
+	conn          *models.Connection
+	configManager common.ConfigManager
+	window        fyne.Window
+	OnDismiss     func()
+	content       fyne.CanvasObject
 
-	OnDismiss func()
-
-	content fyne.CanvasObject
+	// form fields
+	nameEntry        *widget.Entry
+	addressEntry     *widget.Entry
+	portEntry        *widget.Entry
+	userEntry        *widget.Entry
+	passwordEntry    *widget.Entry
+	connectionsEntry *widget.Entry
+	maxRetriesEntry  *widget.Entry
+	proxyAddrEntry   *widget.Entry
+	proxyPortEntry   *widget.Entry
+	// proxyModeSelect  *widget.Select
+	proxyModeSelect *widget.RadioGroup
 }
 
-func NewEditDialog(conn *models.Connection) *EditDialog {
-	d := &EditDialog{}
+func NewEditDialog(conn *models.Connection, configManager common.ConfigManager, window fyne.Window) *EditDialog {
+	d := &EditDialog{
+		conn:          conn,
+		configManager: configManager,
+		window:        window,
+	}
 	d.ExtendBaseWidget(d)
 
-	nameEntry, addressEntry, portEntry := widget.NewEntry(), widget.NewEntry(), widget.NewEntry()
-	userEntry, passwordEntry := widget.NewEntry(), widget.NewPasswordEntry()
-	connectionsEntry, maxRetriesEntry := widget.NewEntry(), widget.NewEntry()
-	proxyAddrEntry, proxyPortEntry := widget.NewEntry(), widget.NewEntry()
-	proxyModeSelect := widget.NewSelect([]string{"socks5", "http"}, nil)
-
-	connectionsEntry.SetText("3")
-	maxRetriesEntry.SetText("3")
-	proxyAddrEntry.SetText("127.0.0.1")
-	proxyPortEntry.SetText("1080")
-	proxyModeSelect.SetSelected("socks5")
-
+	d.createFormFields()
+	d.initializeFields()
 	if conn != nil {
-		nameEntry.SetText(conn.Name)
-		addressEntry.SetText(conn.Address)
-		portEntry.SetText(conn.Port)
-
-		if conn.Config != nil {
-			userEntry.SetText(conn.Config.User)
-			passwordEntry.SetText(conn.Config.Password)
-			connectionsEntry.SetText(fmt.Sprintf("%d", conn.Config.Connections))
-			maxRetriesEntry.SetText(fmt.Sprintf("%d", conn.Config.MaxRetries))
-			proxyAddrEntry.SetText(conn.Config.Proxy.ListenAddr)
-			proxyPortEntry.SetText(fmt.Sprintf("%d", conn.Config.Proxy.ListenPort))
-			proxyModeSelect.SetSelected(conn.Config.Proxy.Mode)
-		}
+		d.populateFields()
 	}
 
-	saveBtn := widget.NewButtonWithIcon("Save Connection", theme.DocumentSaveIcon(), nil)
-	saveBtn.Importance = widget.HighImportance
-	cancelBtn := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() { d.OnDismiss() })
-	buttons := container.NewHBox(layout.NewSpacer(), cancelBtn, widget.NewSeparator(), saveBtn)
+	d.content = d.createDialogContent()
 
-	basicInfo := widget.NewForm(&widget.FormItem{Text: "Name", Widget: nameEntry})
+	return d
+}
 
+func (d *EditDialog) createFormFields() {
+	d.nameEntry = widget.NewEntry()
+	d.addressEntry = widget.NewEntry()
+	d.portEntry = widget.NewEntry()
+	d.userEntry = widget.NewEntry()
+	d.passwordEntry = widget.NewPasswordEntry()
+	d.connectionsEntry = widget.NewEntry()
+	d.maxRetriesEntry = widget.NewEntry()
+	d.proxyAddrEntry = widget.NewEntry()
+	d.proxyPortEntry = widget.NewEntry()
+	// d.proxyModeSelect = widget.NewSelect([]string{"socks5", "http"}, nil)
+	d.proxyModeSelect = widget.NewRadioGroup([]string{"socks5", "http"}, nil)
+	d.proxyModeSelect.Horizontal = true // Make radio buttons horizontal
+	d.proxyModeSelect.Required = true   // Make selection required
+}
+
+func (d *EditDialog) initializeFields() {
+	d.connectionsEntry.SetText("3")
+	d.maxRetriesEntry.SetText("3")
+	d.proxyAddrEntry.SetText("127.0.0.1")
+	d.proxyPortEntry.SetText("1080")
+	d.proxyModeSelect.SetSelected("socks5")
+}
+
+func (d *EditDialog) populateFields() {
+	d.nameEntry.SetText(d.conn.Name)
+	d.addressEntry.SetText(d.conn.Address)
+	d.portEntry.SetText(d.conn.Port)
+
+	if d.conn.Config != nil {
+		d.userEntry.SetText(d.conn.Config.User)
+		d.passwordEntry.SetText(d.conn.Config.Password)
+		d.connectionsEntry.SetText(fmt.Sprintf("%d", d.conn.Config.Connections))
+		d.maxRetriesEntry.SetText(fmt.Sprintf("%d", d.conn.Config.MaxRetries))
+		d.proxyAddrEntry.SetText(d.conn.Config.Proxy.ListenAddr)
+		d.proxyPortEntry.SetText(fmt.Sprintf("%d", d.conn.Config.Proxy.ListenPort))
+		d.proxyModeSelect.SetSelected(d.conn.Config.Proxy.Mode)
+	}
+}
+
+func (d *EditDialog) createDialogContent() fyne.CanvasObject {
+	// Define consistent sizes
+	entryWidth := float32(200)
+	entryHeight := float32(40)
+	size := fyne.NewSize(entryWidth, entryHeight)
+
+	// Set size for all entries
+	entries := []*widget.Entry{
+		d.nameEntry, d.addressEntry, d.portEntry,
+		d.userEntry, d.passwordEntry,
+		d.connectionsEntry, d.maxRetriesEntry,
+		d.proxyAddrEntry, d.proxyPortEntry,
+	}
+
+	for _, entry := range entries {
+		entry.Resize(size)
+	}
+
+	basicInfo := widget.NewForm(&widget.FormItem{Text: "Name", Widget: d.nameEntry})
 	serverInfo := container.NewGridWithColumns(2,
-		widget.NewForm(&widget.FormItem{Text: "Address", Widget: addressEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Port", Widget: portEntry}),
+		widget.NewForm(&widget.FormItem{Text: "IP", Widget: d.addressEntry}),
+		widget.NewForm(&widget.FormItem{Text: "Port", Widget: d.portEntry}),
 	)
 	basicCard := widget.NewCard("Basic Information", "Connection details",
 		container.NewVBox(basicInfo, serverInfo),
 	)
 
 	authInfo := container.NewGridWithColumns(2,
-		widget.NewForm(&widget.FormItem{Text: "Username", Widget: userEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Password", Widget: passwordEntry}),
+		widget.NewForm(&widget.FormItem{Text: "Username", Widget: d.userEntry}),
+		widget.NewForm(&widget.FormItem{Text: "Password", Widget: d.passwordEntry}),
 	)
 	authCard := widget.NewCard("Authentication", "User credentials",
 		container.NewPadded(authInfo),
 	)
 
 	connectionSettings := container.NewGridWithColumns(2,
-		widget.NewForm(&widget.FormItem{Text: "Connections", Widget: connectionsEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Max Retries", Widget: maxRetriesEntry}),
+		widget.NewForm(&widget.FormItem{Text: "Connections", Widget: d.connectionsEntry}),
+		widget.NewForm(&widget.FormItem{Text: "Max Retries", Widget: d.maxRetriesEntry}),
 	)
 	connectionCard := widget.NewCard("Connection Settings", "Advanced configuration",
 		container.NewPadded(connectionSettings),
 	)
 
-	proxySettings := container.NewGridWithColumns(3,
-		widget.NewForm(&widget.FormItem{Text: "IP", Widget: proxyAddrEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Port", Widget: proxyPortEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Mode", Widget: proxyModeSelect}),
+	proxySettings := container.NewGridWithColumns(2,
+		widget.NewForm(&widget.FormItem{Text: "IP", Widget: d.proxyAddrEntry}),
+		widget.NewForm(&widget.FormItem{Text: "Port", Widget: d.proxyPortEntry}),
+		widget.NewForm(&widget.FormItem{Text: "Mode", Widget: d.proxyModeSelect}),
 	)
 	proxyCard := widget.NewCard("Proxy Settings", "Proxy server configuration",
 		container.NewPadded(proxySettings),
 	)
 
-	saveBtn.OnTapped = func() {
-		if nameEntry.Text == "" || addressEntry.Text == "" || portEntry.Text == "" {
-			// dialog.ShowError(errors.New("name, address and port are required"), w)
+	saveBtn := widget.NewButtonWithIcon("Save Connection", theme.DocumentSaveIcon(), func() {
+		if err := d.validateAndSave(); err != nil {
+			dialog.ShowError(err, d.window)
 			return
 		}
 
-		port, err := strconv.Atoi(portEntry.Text)
-		if err != nil {
-			// dialog.ShowError(errors.New("invalid port number"), w)
-			return
+		dialog.ShowInformation("Success", "Connection saved successfully", d.window)
+		if d.OnDismiss != nil {
+			d.OnDismiss()
 		}
+	})
+	saveBtn.Importance = widget.HighImportance
 
-		connections, _ := strconv.Atoi(connectionsEntry.Text)
-		maxRetries, _ := strconv.Atoi(maxRetriesEntry.Text)
-		proxyPort, _ := strconv.Atoi(proxyPortEntry.Text)
-
-		if connections <= 0 {
-			connections = 3
+	cancelBtn := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
+		if d.OnDismiss != nil {
+			d.OnDismiss()
 		}
-		if maxRetries <= 0 {
-			maxRetries = 3
-		}
-		if proxyPort <= 0 {
-			proxyPort = 1080
-		}
+	})
 
-		config := &models.ServerConfig{
-			Name: nameEntry.Text, Host: addressEntry.Text, Port: port,
-			User: userEntry.Text, Password: passwordEntry.Text,
-			MaxRetries: maxRetries,
-			Proxy: models.ProxyConfig{
-				ListenAddr: proxyAddrEntry.Text,
-				ListenPort: proxyPort,
-				Mode:       proxyModeSelect.Selected,
-			},
-		}
+	buttons := container.NewHBox(layout.NewSpacer(), cancelBtn, widget.NewSeparator(), saveBtn)
 
-		conn.Name = nameEntry.Text
-		conn.Address = addressEntry.Text
-		conn.Port = portEntry.Text
-		conn.Config = config
-
-		appConfig := components.LoadConfig()
-		found := false
-		for i, c := range appConfig.Connections {
-			if c.Address == conn.Address && c.Port == conn.Port {
-				appConfig.Connections[i] = conn
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			appConfig.Connections = append(appConfig.Connections, conn)
-		}
-
-		if err := components.SaveConfig(appConfig); err != nil {
-			// dialog.ShowError(err, w)
-			return
-		}
-
-		// list.Refresh()
-		// w.Close()
-		// dialog.ShowInformation("Success", "Connection saved successfully", window)
-	}
-
-	d.content = container.NewPadded(container.NewVBox(
+	return container.NewPadded(container.NewVBox(
 		basicCard, widget.NewSeparator(),
 		authCard, widget.NewSeparator(),
 		connectionCard, widget.NewSeparator(),
 		proxyCard, widget.NewSeparator(),
 		buttons,
 	))
-
-	return d
 }
 
-// func ShowEditDialog(title string, window fyne.Window, conn *models.Connection, list *components.ConnectionList, app fyne.App) {
-// 	w := app.NewWindow(title)
-// 	w.CenterOnScreen()
+func (d *EditDialog) validateAndSave() error {
+	if d.nameEntry.Text == "" || d.addressEntry.Text == "" || d.portEntry.Text == "" {
+		return errors.New("name, address and port are required")
+	}
 
-// 	nameEntry, addressEntry, portEntry := widget.NewEntry(), widget.NewEntry(), widget.NewEntry()
-// 	userEntry, passwordEntry := widget.NewEntry(), widget.NewPasswordEntry()
-// 	connectionsEntry, maxRetriesEntry := widget.NewEntry(), widget.NewEntry()
-// 	proxyAddrEntry, proxyPortEntry := widget.NewEntry(), widget.NewEntry()
-// 	proxyModeSelect := widget.NewSelect([]string{"socks5", "http"}, nil)
+	port, err := strconv.Atoi(d.portEntry.Text)
+	if err != nil {
+		return errors.New("invalid port number")
+	}
 
-// 	connectionsEntry.SetText("3")
-// 	maxRetriesEntry.SetText("3")
-// 	proxyAddrEntry.SetText("127.0.0.1")
-// 	proxyPortEntry.SetText("1080")
-// 	proxyModeSelect.SetSelected("socks5")
+	connections, _ := strconv.Atoi(d.connectionsEntry.Text)
+	maxRetries, _ := strconv.Atoi(d.maxRetriesEntry.Text)
+	proxyPort, _ := strconv.Atoi(d.proxyPortEntry.Text)
 
-// 	if conn != nil {
-// 		nameEntry.SetText(conn.Name)
-// 		addressEntry.SetText(conn.Address)
-// 		portEntry.SetText(conn.Port)
+	if connections <= 0 {
+		connections = 3
+	}
+	if maxRetries <= 0 {
+		maxRetries = 3
+	}
+	if proxyPort <= 0 {
+		proxyPort = 1080
+	}
 
-// 		if conn.Config != nil {
-// 			userEntry.SetText(conn.Config.User)
-// 			passwordEntry.SetText(conn.Config.Password)
-// 			connectionsEntry.SetText(fmt.Sprintf("%d", conn.Config.Connections))
-// 			maxRetriesEntry.SetText(fmt.Sprintf("%d", conn.Config.MaxRetries))
-// 			proxyAddrEntry.SetText(conn.Config.Proxy.ListenAddr)
-// 			proxyPortEntry.SetText(fmt.Sprintf("%d", conn.Config.Proxy.ListenPort))
-// 			proxyModeSelect.SetSelected(conn.Config.Proxy.Mode)
-// 		}
-// 	}
+	config := &models.ServerConfig{
+		Name:        d.nameEntry.Text,
+		Host:        d.addressEntry.Text,
+		Port:        port,
+		User:        d.userEntry.Text,
+		Password:    d.passwordEntry.Text,
+		Connections: connections,
+		MaxRetries:  maxRetries,
+		Proxy: models.ProxyConfig{
+			ListenAddr: d.proxyAddrEntry.Text,
+			ListenPort: proxyPort,
+			Mode:       d.proxyModeSelect.Selected,
+		},
+	}
 
-// 	saveBtn := widget.NewButtonWithIcon("Save Connection", theme.DocumentSaveIcon(), nil)
-// 	saveBtn.Importance = widget.HighImportance
-// 	cancelBtn := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() { w.Close() })
-// 	buttons := container.NewHBox(layout.NewSpacer(), cancelBtn, widget.NewSeparator(), saveBtn)
+	d.conn.Name = d.nameEntry.Text
+	d.conn.Address = d.addressEntry.Text
+	d.conn.Port = d.portEntry.Text
+	d.conn.Config = config
 
-// 	basicInfo := widget.NewForm(&widget.FormItem{Text: "Name", Widget: nameEntry})
+	appConfig := d.configManager.LoadConfig()
+	found := false
+	for i, c := range appConfig.Connections {
+		if c.Address == d.conn.Address && c.Port == d.conn.Port {
+			appConfig.Connections[i] = d.conn
+			found = true
+			break
+		}
+	}
 
-// 	serverInfo := container.NewGridWithColumns(2,
-// 		widget.NewForm(&widget.FormItem{Text: "Address", Widget: addressEntry}),
-// 		widget.NewForm(&widget.FormItem{Text: "Port", Widget: portEntry}),
-// 	)
-// 	basicCard := widget.NewCard("Basic Information", "Connection details",
-// 		container.NewVBox(basicInfo, serverInfo),
-// 	)
+	if !found {
+		appConfig.Connections = append(appConfig.Connections, d.conn)
+	}
 
-// 	authInfo := container.NewGridWithColumns(2,
-// 		widget.NewForm(&widget.FormItem{Text: "Username", Widget: userEntry}),
-// 		widget.NewForm(&widget.FormItem{Text: "Password", Widget: passwordEntry}),
-// 	)
-// 	authCard := widget.NewCard("Authentication", "User credentials",
-// 		container.NewPadded(authInfo),
-// 	)
-
-// 	connectionSettings := container.NewGridWithColumns(2,
-// 		widget.NewForm(&widget.FormItem{Text: "Parallel Connections", Widget: connectionsEntry}),
-// 		widget.NewForm(&widget.FormItem{Text: "Max Retries", Widget: maxRetriesEntry}),
-// 	)
-// 	connectionCard := widget.NewCard("Connection Settings", "Advanced configuration",
-// 		container.NewPadded(connectionSettings),
-// 	)
-
-// 	proxySettings := container.NewGridWithColumns(3,
-// 		widget.NewForm(&widget.FormItem{Text: "Address", Widget: proxyAddrEntry}),
-// 		widget.NewForm(&widget.FormItem{Text: "Port", Widget: proxyPortEntry}),
-// 		widget.NewForm(&widget.FormItem{Text: "Mode", Widget: proxyModeSelect}),
-// 	)
-// 	proxyCard := widget.NewCard("Proxy Settings", "Proxy server configuration",
-// 		container.NewPadded(proxySettings),
-// 	)
-
-// 	saveBtn.OnTapped = func() {
-// 		if nameEntry.Text == "" || addressEntry.Text == "" || portEntry.Text == "" {
-// 			dialog.ShowError(errors.New("name, address and port are required"), w)
-// 			return
-// 		}
-
-// 		port, err := strconv.Atoi(portEntry.Text)
-// 		if err != nil {
-// 			dialog.ShowError(errors.New("invalid port number"), w)
-// 			return
-// 		}
-
-// 		connections, _ := strconv.Atoi(connectionsEntry.Text)
-// 		maxRetries, _ := strconv.Atoi(maxRetriesEntry.Text)
-// 		proxyPort, _ := strconv.Atoi(proxyPortEntry.Text)
-
-// 		if connections <= 0 {
-// 			connections = 3
-// 		}
-// 		if maxRetries <= 0 {
-// 			maxRetries = 3
-// 		}
-// 		if proxyPort <= 0 {
-// 			proxyPort = 1080
-// 		}
-
-// 		config := &models.ServerConfig{
-// 			Name: nameEntry.Text, Host: addressEntry.Text, Port: port,
-// 			User: userEntry.Text, Password: passwordEntry.Text,
-// 			MaxRetries: maxRetries,
-// 			Proxy: models.ProxyConfig{
-// 				ListenAddr: proxyAddrEntry.Text,
-// 				ListenPort: proxyPort,
-// 				Mode:       proxyModeSelect.Selected,
-// 			},
-// 		}
-
-// 		conn.Name = nameEntry.Text
-// 		conn.Address = addressEntry.Text
-// 		conn.Port = portEntry.Text
-// 		conn.Config = config
-
-// 		appConfig := components.LoadConfig()
-// 		found := false
-// 		for i, c := range appConfig.Connections {
-// 			if c.Address == conn.Address && c.Port == conn.Port {
-// 				appConfig.Connections[i] = conn
-// 				found = true
-// 				break
-// 			}
-// 		}
-
-// 		if !found {
-// 			appConfig.Connections = append(appConfig.Connections, conn)
-// 		}
-
-// 		if err := components.SaveConfig(appConfig); err != nil {
-// 			dialog.ShowError(err, w)
-// 			return
-// 		}
-
-// 		list.Refresh()
-// 		w.Close()
-// 		dialog.ShowInformation("Success", "Connection saved successfully", window)
-// 	}
-
-// 	content := container.NewPadded(container.NewVBox(
-// 		basicCard, widget.NewSeparator(),
-// 		authCard, widget.NewSeparator(),
-// 		connectionCard, widget.NewSeparator(),
-// 		proxyCard, widget.NewSeparator(),
-// 		buttons,
-// 	))
-
-// 	w.SetContent(content)
-// 	w.Resize(content.MinSize())
-// 	w.Show()
-// }
+	return d.configManager.SaveConfig(appConfig)
+}
 
 func (d *EditDialog) MinSize() fyne.Size {
-	return fyne.NewSize(420, d.BaseWidget.MinSize().Height)
+	return fyne.NewSize(400, d.BaseWidget.MinSize().Height)
 }
 
 func (d *EditDialog) CreateRenderer() fyne.WidgetRenderer {
