@@ -63,4 +63,6 @@ Thumbs.db
 *.sln
 *.sw?
 
-connections.json
+fyne-cross/*
+
+*.apk

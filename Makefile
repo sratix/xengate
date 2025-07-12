@@ -78,6 +78,11 @@ darwin: check-fyne-cross
 		-icon=$(ICON) \
 		-output $(APPNAME)
 
+KEYSTORE := keys/my-release-key.keystore
+KEYSTORE_PASSWORD := Ximbesto110
+KEY_ALIAS := keyx
+KEY_PASSWORD := Xolinna110
+
 # Android build
 # android: check-fyne-cross
 # 	@echo "Building for Android..."
@@ -85,15 +90,15 @@ darwin: check-fyne-cross
 # 		-app-id=$(PACKAGE) \
 # 		-app-version=$(VERSION) \
 # 		-icon=$(ICON) \
-# 		$(FYNE_FLAGS) \
-# 		-output $(APPNAME)
+# 		-keystore=$(KEYSTORE) \
+# 		-keystore-pass=$(KEYSTORE_PASSWORD) \
+# 		-key-pass=$(KEY_PASSWORD)
 android:
 	@echo "Building for Android..."
 	fyne package -os android \
 		-app-id=$(PACKAGE) \
 		-name $(APPNAME) \
-		-icon $(ICON) \
-		-release
+		-icon $(ICON)
 
 # iOS build
 ios: check-fyne-cross

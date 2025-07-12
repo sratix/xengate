@@ -4,11 +4,12 @@ go 1.23.5
 
 require (
 	fyne.io/fyne/v2 v2.6.1
-	github.com/20after4/configdir v0.1.1
+	github.com/eycorsican/go-tun2socks v1.16.11
 	github.com/json-iterator/go v1.1.12
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/pelletier/go-toml/v2 v2.2.4
+	github.com/sirupsen/logrus v1.9.3
 	github.com/zalando/go-keyring v0.2.6
 	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/zap v1.27.0
@@ -65,7 +66,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rymdport/portal v0.4.1 // indirect
-	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/stretchr/testify v1.10.0 // indirect

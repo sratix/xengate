@@ -1,14 +1,18 @@
 package ui
 
 import (
+	"context"
 	"fmt"
+	"sync"
 
 	"xengate/backend"
 	"xengate/internal/models"
+	"xengate/internal/proxy"
+	"xengate/internal/tunnel"
 	"xengate/res"
+
 	"xengate/ui/components"
 	"xengate/ui/dialogs"
-	"xengate/ui/layouts"
 	"xengate/ui/util"
 
 	myTheme "xengate/ui/theme"
@@ -63,6 +67,14 @@ type MainWindow struct {
 	connectionList *components.ConnectionList
 
 	fyneApp fyne.App
+
+	Man *tunnel.Manager
+
+	wg sync.WaitGroup
+
+	proxyErrCh  chan error
+	proxyCtx    context.Context
+	proxyCancel context.CancelFunc
 }
 
 func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string, app *backend.App) MainWindow {
@@ -95,6 +107,32 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 		}
 	})
 
+	m.Man = tunnel.NewManager()
+
+	socksServer, _ := proxy.NewProxy("socks5", "192.168.1.0", 1080, m.Man)
+	httpServer, _ := proxy.NewProxy("http", "192.168.1.0", 1090, m.Man)
+	// if err != nil {
+	// 	// fmt.Errorf("failed to create proxy: %w", err)
+	// }
+
+	// Start proxy in background
+	m.proxyErrCh = make(chan error, 1)
+	m.proxyCtx, m.proxyCancel = context.WithCancel(context.Background())
+	// defer proxyCancel()
+
+	// m.wg.Add(1)
+	// go func() {
+	// defer m.wg.Done()
+	if err := socksServer.Start(m.proxyCtx); err != nil {
+		//	m.proxyErrCh <- err
+	}
+	if err := httpServer.Start(m.proxyCtx); err != nil {
+		//	m.proxyErrCh <- err
+	}
+	//}()
+
+	m.addShortcuts()
+
 	return m
 }
 
@@ -102,23 +140,6 @@ func (m *MainWindow) initUI() {
 	m.initToolbar()
 
 	m.connectionList = components.NewConnectionList(m.fyneApp, m.Window)
-
-	// // Add sample connections
-	// m.connectionList.AddConnection(&components.Connection{
-	// 	Name:    "migrate - sratix",
-	// 	Address: "78.129.220.121",
-	// 	Port:    "22",
-	// 	Type:    "SSH",
-	// 	Status:  components.StatusActive,
-	// })
-
-	// m.connectionList.AddConnection(&components.Connection{
-	// 	Name:    "migrate - sratix",
-	// 	Address: "192.227.134.68",
-	// 	Port:    "22",
-	// 	Type:    "SSH + NONE",
-	// 	Status:  components.StatusInactive,
-	// })
 
 	// Add handlers
 	m.connectionList.SetOnShare(func(conn *models.Connection) {
@@ -139,14 +160,27 @@ func (m *MainWindow) initUI() {
 		)
 	})
 
+	m.connectionList.SetOnSelect(func(conn *models.Connection) {
+		switch conn.Status {
+		case models.StatusActive:
+			m.Man.Start(context.Background(), conn)
+		case models.StatusInactive:
+			m.Man.Stop(conn.Name)
+		}
+	})
+
 	content := container.NewPadded(
 		container.NewVScroll(m.connectionList),
 	)
 
 	m.topRow = container.NewStack(m.toolBar)
-	// content := container.NewStack(newFixedSpacer(fyne.NewSize(640, 480)))
-	m.bottomRow = container.NewStack(layouts.NewFixedSpacer(fyne.NewSize(640, 50)))
-	m.Window.SetContent(container.NewBorder(m.topRow, m.bottomRow, nil, nil, content))
+	split := container.NewVSplit(
+		container.NewPadded(content),
+		container.NewPadded(components.NewLogWidget(1000)),
+	)
+	split.SetOffset(0.6)
+
+	m.Window.SetContent(container.NewBorder(m.topRow, nil, nil, nil, container.NewPadded(split)))
 }
 
 func (m *MainWindow) DesiredSize() fyne.Size {
@@ -229,8 +263,6 @@ func (m *MainWindow) initToolbar() {
 	m.toolBar.Append(m.actAdd)
 	m.toolBar.Append(widget.NewToolbarSeparator())
 	m.toolBar.Append(widget.NewToolbarSpacer())
-	// m.toolBar.Append(widget.NewToolbarSeparator())
-	// m.toolBar.Append(m.actToggleFullScreen)
 	m.toolBar.Append(widget.NewToolbarSeparator())
 	m.toolBar.Append(m.actSettings)
 	m.toolBar.Append(m.actAbout)
@@ -320,6 +352,22 @@ func (m *MainWindow) SetContent(c fyne.CanvasObject) {
 
 func (m *MainWindow) Quit() {
 	m.SaveWindowSize()
+
+	m.Man.StopAll()
+	m.proxyCancel()
+
+	if m.HaveSystemTray() {
+		m.sendNotification("Xengate", "Application is quitting")
+		m.Window.Hide()
+		return
+	}
+	if m.HaveModal() {
+		dialog.ShowInformation("Quit", "Please close the modal dialog before quitting.", m.Window)
+		return
+	}
+
+	m.App.SaveConfigFile()
+
 	fyne.CurrentApp().Quit()
 }
 
@@ -327,4 +375,21 @@ func (m *MainWindow) SaveWindowSize() {
 	util.SaveWindowSize(m.Window,
 		&m.App.Config.Application.WindowWidth,
 		&m.App.Config.Application.WindowHeight)
+}
+
+func (m *MainWindow) addShortcuts() {
+	m.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) {
+		switch e.Name {
+		case fyne.KeyEscape:
+			m.CloseEscapablePopUp()
+		}
+	})
+}
+
+func (m *MainWindow) CloseEscapablePopUp() {
+	if m.escapablePopUp != nil {
+		m.escapablePopUp.Hide()
+		m.escapablePopUp = nil
+		m.doModalClosed()
+	}
 }

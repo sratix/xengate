@@ -1,11 +1,11 @@
 package storage
 
 import (
-	"os"
+	"io"
 	"path/filepath"
-	"runtime"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/storage"
 )
 
 type AppStorage struct {
@@ -16,36 +16,28 @@ type AppStorage struct {
 }
 
 func NewAppStorage(app fyne.App) (*AppStorage, error) {
-	var baseDir string
-	var err error
-
-	if runtime.GOOS == "android" {
-		baseDir = app.Storage().RootURI().Path()
-	} else {
-		baseDir, err = os.UserConfigDir()
-		if err != nil {
-			return nil, err
-		}
-		baseDir = filepath.Join(baseDir, "xengate")
-	}
+	baseDir := app.Storage().RootURI().Path()
 
 	configPath := filepath.Join(baseDir, "config")
 	dbPath := filepath.Join(baseDir, "db")
 	cachePath := filepath.Join(baseDir, "cache")
 
-	dirs := []string{configPath, dbPath, cachePath}
-	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return nil, err
-		}
-	}
-
-	return &AppStorage{
+	s := &AppStorage{
 		app:        app,
 		configPath: configPath,
 		dbPath:     dbPath,
 		cachePath:  cachePath,
-	}, nil
+	}
+
+	// Ensure directories exist
+	dirs := []string{configPath, dbPath, cachePath}
+	for _, dir := range dirs {
+		if err := s.EnsureDirPermissions(dir); err != nil {
+			return nil, err
+		}
+	}
+
+	return s, nil
 }
 
 func (s *AppStorage) ConfigPath() string {
@@ -62,50 +54,67 @@ func (s *AppStorage) CachePath() string {
 
 func (s *AppStorage) EnsureFilePermissions(path string) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := s.EnsureDirPermissions(dir); err != nil {
 		return err
 	}
 
-	// اگر فایل وجود نداشت، یک فایل خالی بساز
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		file, err := os.Create(path)
+	uri := storage.NewFileURI(path)
+	exists, err := storage.Exists(uri)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		writer, err := storage.Writer(uri)
 		if err != nil {
 			return err
 		}
-		file.Close()
+		defer writer.Close()
 	}
-
-	return os.Chmod(path, 0o644)
+	return nil
 }
 
 func (s *AppStorage) EnsureDirPermissions(dirpath string) error {
-	if err := os.MkdirAll(dirpath, 0o755); err != nil {
+	uri := storage.NewFileURI(dirpath)
+	exists, err := storage.Exists(uri)
+	if err != nil {
 		return err
 	}
-	return os.Chmod(dirpath, 0o755)
+	if !exists {
+		return storage.CreateListable(uri)
+	}
+	return nil
 }
 
 func (s *AppStorage) WriteFile(filepath string, data []byte) error {
-	if err := s.EnsureFilePermissions(filepath); err != nil {
+	uri := storage.NewFileURI(filepath)
+	writer, err := storage.Writer(uri)
+	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath, data, 0o644)
+	defer writer.Close()
+	_, err = writer.Write(data)
+	return err
 }
 
 func (s *AppStorage) ReadFile(filepath string) ([]byte, error) {
-	if err := s.EnsureFilePermissions(filepath); err != nil {
+	uri := storage.NewFileURI(filepath)
+	reader, err := storage.Reader(uri)
+	if err != nil {
 		return nil, err
 	}
-	return os.ReadFile(filepath)
+	defer reader.Close()
+	return io.ReadAll(reader)
 }
 
 func (s *AppStorage) FileExists(filepath string) bool {
-	_, err := os.Stat(filepath)
-	return err == nil
+	uri := storage.NewFileURI(filepath)
+	exists, _ := storage.Exists(uri)
+	return exists
 }
 
 func (s *AppStorage) DeleteFile(filepath string) error {
-	return os.Remove(filepath)
+	uri := storage.NewFileURI(filepath)
+	return storage.Delete(uri)
 }
 
 func (s *AppStorage) CopyFile(src, dst string) error {
@@ -117,29 +126,30 @@ func (s *AppStorage) CopyFile(src, dst string) error {
 }
 
 func (s *AppStorage) ListFiles(dirpath string) ([]string, error) {
-	var files []string
-	entries, err := os.ReadDir(dirpath)
+	uri := storage.NewFileURI(dirpath)
+	list, err := storage.List(uri)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			files = append(files, filepath.Join(dirpath, entry.Name()))
+	var files []string
+	for _, item := range list {
+		_, err := storage.CanList(item)
+		if err != nil { // Not a directory
+			files = append(files, item.Path())
 		}
 	}
 	return files, nil
 }
 
 func (s *AppStorage) ClearCache() error {
-	entries, err := os.ReadDir(s.cachePath)
+	files, err := s.ListFiles(s.cachePath)
 	if err != nil {
 		return err
 	}
 
-	for _, entry := range entries {
-		path := filepath.Join(s.cachePath, entry.Name())
-		if err := os.RemoveAll(path); err != nil {
+	for _, file := range files {
+		if err := s.DeleteFile(file); err != nil {
 			return err
 		}
 	}
@@ -148,14 +158,18 @@ func (s *AppStorage) ClearCache() error {
 
 func (s *AppStorage) GetCacheSize() (int64, error) {
 	var size int64
-	err := filepath.Walk(s.cachePath, func(_ string, info os.FileInfo, err error) error {
+
+	files, err := s.ListFiles(s.cachePath)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, file := range files {
+		data, err := s.ReadFile(file)
 		if err != nil {
-			return err
+			continue
 		}
-		if !info.IsDir() {
-			size += info.Size()
-		}
-		return nil
-	})
-	return size, err
+		size += int64(len(data))
+	}
+	return size, nil
 }

@@ -2,20 +2,24 @@ package components
 
 import (
 	"encoding/json"
-	"os"
+	"path/filepath"
 
 	"xengate/internal/common"
 	"xengate/internal/models"
+	"xengate/internal/storage"
 )
 
 const (
 	configFile = "connections.json"
 )
 
-type DefaultConfigManager struct{}
+type DefaultConfigManager struct {
+	Storage *storage.AppStorage
+}
 
 func (m *DefaultConfigManager) LoadConfig() *common.Config {
-	data, err := os.ReadFile(configFile)
+	path := filepath.Join(m.Storage.ConfigPath(), configFile)
+	data, err := m.Storage.ReadFile(path)
 	if err != nil {
 		return &common.Config{Connections: make([]*models.Connection, 0)}
 	}
@@ -33,5 +37,6 @@ func (m *DefaultConfigManager) SaveConfig(config *common.Config) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(configFile, data, 0o644)
+	path := filepath.Join(m.Storage.ConfigPath(), configFile)
+	return m.Storage.WriteFile(path, data)
 }

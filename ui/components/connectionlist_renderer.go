@@ -25,6 +25,15 @@ type connectionListRenderer struct {
 }
 
 func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) fyne.CanvasObject {
+
+	appConfig := r.list.configManager.LoadConfig()
+	for i := range appConfig.Connections {
+		appConfig.Connections[i].Status = models.StatusInactive
+	}
+	if err := r.list.configManager.SaveConfig(appConfig); err != nil {
+
+	}
+
 	itemHeight := float32(60)
 
 	statusColor := color.NRGBA{R: 117, G: 117, B: 117, A: 255} // Inactive
@@ -95,6 +104,7 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 		switch conn.Status {
 		case models.StatusInactive:
 			conn.Status = models.StatusActive
+
 		case models.StatusActive:
 			conn.Status = models.StatusInactive
 		}
@@ -103,6 +113,8 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 		for i, c := range appConfig.Connections {
 			if c.Address == conn.Address && c.Port == conn.Port {
 				appConfig.Connections[i].Status = conn.Status
+				r.list.Refresh()
+				r.list.onSelect(conn)
 				break
 			}
 		}

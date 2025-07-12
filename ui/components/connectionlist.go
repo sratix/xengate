@@ -3,6 +3,7 @@ package components
 import (
 	"xengate/internal/common"
 	"xengate/internal/models"
+	"xengate/internal/storage"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
@@ -12,12 +13,14 @@ import (
 type ConnectionList struct {
 	widget.BaseWidget
 	App           fyne.App
+	storage       *storage.AppStorage
 	Window        fyne.Window
 	connections   []*models.Connection
 	configManager common.ConfigManager
 	onEdit        func(*models.Connection)
 	onShare       func(*models.Connection)
 	onDelete      func(*models.Connection)
+	onSelect      func(*models.Connection)
 }
 
 func (l *ConnectionList) GetConfigManager() common.ConfigManager {
@@ -31,12 +34,16 @@ func (l *ConnectionList) LoadConnections() {
 
 func NewConnectionList(app fyne.App, window fyne.Window) *ConnectionList {
 	list := &ConnectionList{
-		App:           app,
-		Window:        window,
-		connections:   make([]*models.Connection, 0),
-		configManager: &DefaultConfigManager{},
+		App:         app,
+		Window:      window,
+		connections: make([]*models.Connection, 0),
 	}
 	list.ExtendBaseWidget(list)
+	list.storage, _ = storage.NewAppStorage(app)
+	list.configManager = &DefaultConfigManager{
+		Storage: list.storage,
+	}
+	// Load connections from the config manager
 	list.LoadConnections()
 	return list
 }
@@ -94,4 +101,8 @@ func (l *ConnectionList) SetOnShare(callback func(*models.Connection)) {
 
 func (l *ConnectionList) SetOnDelete(callback func(*models.Connection)) {
 	l.onDelete = callback
+}
+
+func (l *ConnectionList) SetOnSelect(callback func(*models.Connection)) {
+	l.onSelect = callback
 }
