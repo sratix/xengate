@@ -18,11 +18,13 @@ type AppConfig struct {
 	SettingsTab                 string
 	AllowMultiInstance          bool
 	MaxImageCacheSizeMB         int
-	ClearCacheOnExit    bool
+	ClearCacheOnExit            bool
 	DefaultPlaylistID           string
 	AddToPlaylistSkipDuplicates bool
 	ShowTrackChangeNotification bool
 	Language                    string
+	StartAtStartup              bool
+	MinimizeAtStartup           bool
 	DisableDPIDetection         bool
 	RequestTimeoutSeconds       int
 
@@ -57,7 +59,7 @@ func DefaultConfig(appVersionTag string) *Config {
 			LastLaunchedVersion: "",
 			EnableSystemTray:    true,
 			CloseToSystemTray:   false,
-			 ClearCacheOnExit:    false,
+			ClearCacheOnExit:    false,
 			StartupPage:         "Albums",
 			SettingsTab:         "General",
 			AllowMultiInstance:  false,

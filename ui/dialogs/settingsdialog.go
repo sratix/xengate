@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"xengate/backend"
+	"xengate/pkg/startup"
 	"xengate/res"
 	"xengate/ui/util"
 
@@ -37,9 +38,10 @@ type SettingsDialog struct {
 	clientDecidesScrobble bool
 
 	content fyne.CanvasObject
+
+	startupManager startup.StartupManager
 }
 
-// TODO: having this depend on the mpv package for the AudioDevice type is kinda gross. Refactor.
 func NewSettingsDialog(
 	config *backend.Config,
 	themeFileList map[string]string,
@@ -48,12 +50,10 @@ func NewSettingsDialog(
 	s := &SettingsDialog{config: config, themeFiles: themeFileList}
 	s.ExtendBaseWidget(s)
 
-	// TODO: It may be a nicer UX to always create the equalizer tab,
-	// but disable it if we are not using an equalizer player
-	var tabs *container.AppTabs
+	s.startupManager = startup.NewStartupManager("xengate")
 
-	tabs = container.NewAppTabs(
-		s.createGeneralTab(),
+	var tabs *container.AppTabs = container.NewAppTabs(
+		s.createGeneralTab(window),
 		s.createAppearanceTab(window),
 		s.createAdvancedTab(),
 	)
@@ -73,20 +73,50 @@ func NewSettingsDialog(
 	return s
 }
 
-func (s *SettingsDialog) createGeneralTab() *container.TabItem {
-	// pages := util.LocalizeSlice(backend.SupportedStartupPages)
-	// var startupPage *widget.Select
-	// startupPage = widget.NewSelect(pages, func(_ string) {
-	// 	s.config.Application.StartupPage = backend.SupportedStartupPages[startupPage.SelectedIndex()]
-	// })
+func (d *SettingsDialog) createStartupGroup(window fyne.Window) *fyne.Container {
+	if d.startupManager == nil {
+		startMinimized := widget.NewCheckWithData("Start minimized",
+			binding.BindBool(&d.config.Application.MinimizeAtStartup))
+
+		return container.NewHBox(
+			startMinimized,
+		)
+	}
+
+	var startupCheck *widget.Check
+	startupCheck = widget.NewCheck("Start at system startup", func(enabled bool) {
+		var err error
+		if enabled {
+			err = d.startupManager.Enable()
+		} else {
+			err = d.startupManager.Disable()
+		}
+
+		if err != nil {
+			dialog.ShowError(err, window)
+			startupCheck.SetChecked(!enabled)
+			return
+		}
+		d.config.Application.StartAtStartup = enabled
+	})
+
+	isEnabled := d.startupManager.IsEnabled()
+	startupCheck.SetChecked(isEnabled)
+
+	startMinimized := widget.NewCheckWithData("Start minimized",
+		binding.BindBool(&d.config.Application.MinimizeAtStartup))
+
+	return container.NewHBox(
+		startupCheck,
+		startMinimized,
+	)
+}
+
+func (s *SettingsDialog) createGeneralTab(window fyne.Window) *container.TabItem {
 	initialIdx := slices.Index(backend.SupportedStartupPages, s.config.Application.StartupPage)
 	if initialIdx < 0 {
 		initialIdx = 0
 	}
-	// startupPage.SetSelectedIndex(initialIdx)
-	// if startupPage.Selected == "" {
-	// 	startupPage.SetSelectedIndex(0)
-	// }
 
 	languageList := make([]string, len(res.TranslationsInfo)+1)
 	languageList[0] = lang.L("Auto")
@@ -132,27 +162,8 @@ func (s *SettingsDialog) createGeneralTab() *container.TabItem {
 	return container.NewTabItem(lang.L("General"), container.NewVBox(
 		util.NewHSpace(0), // insert a theme.Padding amount of space at top
 		container.NewHBox(widget.NewLabel(lang.L("Language")), languageSelect),
-		container.NewHBox(
-		// widget.NewLabel(lang.L("Startup page")), container.NewGridWithColumns(2, startupPage),
-		),
 		container.NewHBox(systemTrayEnable, closeToTray),
-		// saveQueueHBox,
-		// trackNotif,
-		// albumGridYears,
-		s.newSectionSeparator(),
-
-		// widget.NewRichText(&widget.TextSegment{Text: "Scrobbling", Style: util.BoldRichTextStyle}),
-		// // scrobbleEnabled,
-		// container.NewHBox(
-		// 	widget.NewLabel(lang.L("Scrobble when")),
-		// 	// percentEntry,
-		// 	widget.NewLabel(lang.L("percent of track is played")),
-		// ),
-		// container.NewHBox(
-		// 	// durationEnabled,
-		// 	// durationEntry,
-		// 	widget.NewLabel(lang.L("minutes of track have been played")),
-		// ),
+		s.createStartupGroup(window),
 	))
 }
 
