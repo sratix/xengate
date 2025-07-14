@@ -4,7 +4,7 @@ go 1.23.5
 
 require (
 	fyne.io/fyne/v2 v2.6.1
-	github.com/ajstarks/fc v0.0.0-20250614000858-d9360cb1f1b8
+	github.com/google/uuid v1.1.2
 	github.com/json-iterator/go v1.1.12
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/ory/dockertest/v3 v3.12.0

@@ -212,7 +212,7 @@ func (m *MainWindow) initUI() {
 		)
 	})
 
-	m.connectionList.SetOnSelect(func(conn *models.Connection) {
+	m.connectionList.SetOnRun(func(conn *models.Connection) {
 		switch conn.Status {
 		case models.StatusActive:
 			m.Man.Start(context.Background(), conn)
@@ -221,18 +221,12 @@ func (m *MainWindow) initUI() {
 		}
 	})
 
-	content := container.NewPadded(
-		container.NewVScroll(m.connectionList),
+	tabs := container.NewAppTabs(
+		container.NewTabItem("Connections", container.NewVScroll(m.connectionList)),
+		container.NewTabItem("Log", components.NewLogWidget(1000)),
 	)
 
-	m.topRow = container.NewStack(m.toolBar)
-	split := container.NewVSplit(
-		container.NewPadded(content),
-		container.NewPadded(components.NewLogWidget(1000)),
-	)
-	split.SetOffset(0.6)
-
-	m.Window.SetContent(container.NewBorder(m.topRow, nil, nil, nil, container.NewPadded(split)))
+	m.Window.SetContent(container.NewBorder(m.toolBar, nil, nil, nil, container.NewPadded(tabs)))
 }
 
 func (m *MainWindow) DesiredSize() fyne.Size {

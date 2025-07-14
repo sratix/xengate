@@ -25,13 +25,11 @@ type connectionListRenderer struct {
 }
 
 func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) fyne.CanvasObject {
-
 	appConfig := r.list.configManager.LoadConfig()
 	for i := range appConfig.Connections {
 		appConfig.Connections[i].Status = models.StatusInactive
 	}
 	if err := r.list.configManager.SaveConfig(appConfig); err != nil {
-
 	}
 
 	itemHeight := float32(60)
@@ -52,7 +50,7 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 	addressLabel := widget.NewLabel(fmt.Sprintf("%s:%s", conn.Address, conn.Port))
 	addressLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
-	proxyLabel := NewBadge(conn.Config.Proxy.Mode, fyne.CurrentApp().Settings().Theme().Color(myTheme.ColorNameTextMuted, fyne.CurrentApp().Settings().ThemeVariant()))
+	proxyLabel := NewBadge(conn.Config.Mode, fyne.CurrentApp().Settings().Theme().Color(myTheme.ColorNameTextMuted, fyne.CurrentApp().Settings().ThemeVariant()))
 
 	shareBtn := widget.NewButtonWithIcon("", myTheme.ShareIcon, func() {
 		if r.list.onShare != nil {
@@ -77,6 +75,41 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 		}
 	})
 
+	var runBtn *widget.Button
+	icn := theme.MediaPlayIcon()
+	if conn.Status == models.StatusActive {
+		icn = theme.MediaStopIcon()
+	}
+
+	runBtn = widget.NewButtonWithIcon("", icn, func() {
+		if r.list.onRun != nil {
+			if conn.Status == models.StatusInactive {
+				runBtn.SetIcon(theme.MediaStopIcon())
+				conn.Status = models.StatusActive
+			} else {
+				runBtn.SetIcon(theme.MediaPlayIcon())
+				conn.Status = models.StatusInactive
+			}
+
+			r.list.onRun(conn)
+
+			appConfig := r.list.configManager.LoadConfig()
+			for i, c := range appConfig.Connections {
+				if c.ID == conn.ID {
+					appConfig.Connections[i].Status = conn.Status
+					break
+				}
+			}
+
+			if err := r.list.configManager.SaveConfig(appConfig); err != nil {
+				dialog.ShowError(err, r.list.Window)
+				return
+			}
+
+			r.list.Refresh()
+		}
+	})
+
 	details := container.NewVBox(
 		container.NewHBox(
 			nameLabel,
@@ -84,7 +117,8 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 			container.NewPadded(container.NewHBox(
 				shareBtn,
 				editBtn,
-				deleteBtn)),
+				deleteBtn,
+				runBtn)),
 		),
 		container.NewHBox(
 			addressLabel, proxyLabel,
@@ -100,36 +134,38 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 		),
 	)
 
-	tapButton := widget.NewButton("", func() {
-		switch conn.Status {
-		case models.StatusInactive:
-			conn.Status = models.StatusActive
+	// tapButton := widget.NewButton("", func() {
+	// 	switch conn.Status {
+	// 	case models.StatusInactive:
+	// 		conn.Status = models.StatusActive
 
-		case models.StatusActive:
-			conn.Status = models.StatusInactive
-		}
+	// 	case models.StatusActive:
+	// 		conn.Status = models.StatusInactive
+	// 	}
 
-		appConfig := r.list.configManager.LoadConfig()
-		for i, c := range appConfig.Connections {
-			if c.Address == conn.Address && c.Port == conn.Port {
-				appConfig.Connections[i].Status = conn.Status
-				r.list.Refresh()
-				r.list.onSelect(conn)
-				break
-			}
-		}
-		if err := r.list.configManager.SaveConfig(appConfig); err != nil {
-			dialog.ShowError(err, r.list.Window)
-			return
-		}
+	// 	appConfig := r.list.configManager.LoadConfig()
+	// 	for i, c := range appConfig.Connections {
+	// 		if c.ID == conn.ID {
+	// 			appConfig.Connections[i].Status = conn.Status
+	// 			r.list.Refresh()
+	// 			// r.list.onSelect(conn)
+	// 			break
+	// 		}
+	// 	}
 
-		r.list.Refresh()
-	})
-	tapButton.Importance = widget.LowImportance
+	// 	if err := r.list.configManager.SaveConfig(appConfig); err != nil {
+	// 		dialog.ShowError(err, r.list.Window)
+	// 		return
+	// 	}
+
+	// 	r.list.Refresh()
+	// })
+
+	// tapButton.Importance = widget.LowImportance
 
 	mainStack := container.NewStack(
 		mainBg,
-		tapButton,
+		// tapButton,
 		content,
 	)
 

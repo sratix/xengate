@@ -20,7 +20,7 @@ type ConnectionList struct {
 	onEdit        func(*models.Connection)
 	onShare       func(*models.Connection)
 	onDelete      func(*models.Connection)
-	onSelect      func(*models.Connection)
+	onRun         func(*models.Connection)
 }
 
 func (l *ConnectionList) GetConfigManager() common.ConfigManager {
@@ -69,7 +69,7 @@ func (l *ConnectionList) AddConnection(conn *models.Connection) {
 
 func (l *ConnectionList) RemoveConnection(conn *models.Connection) {
 	for i, c := range l.connections {
-		if c.Address == conn.Address && c.Port == conn.Port {
+		if c.ID == conn.ID {
 			l.connections = append(l.connections[:i], l.connections[i+1:]...)
 			break
 		}
@@ -77,7 +77,7 @@ func (l *ConnectionList) RemoveConnection(conn *models.Connection) {
 
 	config := l.configManager.LoadConfig()
 	for i, c := range config.Connections {
-		if c.Address == conn.Address && c.Port == conn.Port {
+		if c.ID == conn.ID {
 			config.Connections = append(config.Connections[:i], config.Connections[i+1:]...)
 			break
 		}
@@ -103,10 +103,9 @@ func (l *ConnectionList) SetOnDelete(callback func(*models.Connection)) {
 	l.onDelete = callback
 }
 
-func (l *ConnectionList) SetOnSelect(callback func(*models.Connection)) {
-	l.onSelect = callback
+func (l *ConnectionList) SetOnRun(callback func(*models.Connection)) {
+	l.onRun = callback
 }
 
-func (l *ConnectionList) SetStats(connections []*models.Connection) {
-	
-}
+// func (l *ConnectionList) SetStats(connections []*models.Connection) {
+// }

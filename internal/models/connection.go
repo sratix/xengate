@@ -1,3 +1,4 @@
+// Package models contains data structures for xengate's internal logic.
 package models
 
 type ConnectionStatus int
@@ -11,22 +12,21 @@ const (
 type ProxyConfig struct {
 	ListenAddr string `json:"listen_addr"`
 	ListenPort int    `json:"listen_port"`
-	Mode       string `json:"mode"`
 }
 
 type ServerConfig struct {
-	Name        string      `json:"name"`
-	Host        string      `json:"host"`
-	Port        int         `json:"port"`
-	User        string      `json:"user"`
-	Password    string      `json:"password,omitempty"`
-	Connections int         `json:"connections"`
-	MaxRetries  int         `json:"max_retries"`
-	Proxy       ProxyConfig `json:"proxy"`
+	Name        string `json:"name"`
+	Host        string `json:"host"`
+	Port        int    `json:"port"`
+	User        string `json:"user"`
+	Password    string `json:"password,omitempty"`
+	Connections int    `json:"connections"`
+	MaxRetries  int    `json:"max_retries"`
+	Mode        string `json:"mode"`
 }
 
 type Connection struct {
-	ID      int64            `json:"id"`
+	ID      string           `json:"id"`
 	Name    string           `json:"name"`
 	Address string           `json:"address"`
 	Port    string           `json:"port"`

@@ -52,7 +52,7 @@ func NewSettingsDialog(
 
 	s.startupManager = startup.NewStartupManager("xengate")
 
-	var tabs *container.AppTabs = container.NewAppTabs(
+	tabs := container.NewAppTabs(
 		s.createGeneralTab(window),
 		s.createAppearanceTab(window),
 		s.createAdvancedTab(),

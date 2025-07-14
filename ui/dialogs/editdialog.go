@@ -7,6 +7,7 @@ import (
 
 	"xengate/internal/common"
 	"xengate/internal/models"
+	"xengate/ui/util"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -19,6 +20,7 @@ import (
 type EditDialog struct {
 	widget.BaseWidget
 	conn          *models.Connection
+	proxy         *models.ProxyConfig
 	configManager common.ConfigManager
 	window        fyne.Window
 	OnDismiss     func()
@@ -32,9 +34,8 @@ type EditDialog struct {
 	passwordEntry    *widget.Entry
 	connectionsEntry *widget.Entry
 	maxRetriesEntry  *widget.Entry
-	proxyAddrEntry   *widget.Entry
-	proxyPortEntry   *widget.Entry
-	// proxyModeSelect  *widget.Select
+	// proxyAddrEntry   *widget.Entry
+	// proxyPortEntry   *widget.Entry
 	proxyModeSelect *widget.RadioGroup
 }
 
@@ -65,8 +66,8 @@ func (d *EditDialog) createFormFields() {
 	d.passwordEntry = widget.NewPasswordEntry()
 	d.connectionsEntry = widget.NewEntry()
 	d.maxRetriesEntry = widget.NewEntry()
-	d.proxyAddrEntry = widget.NewEntry()
-	d.proxyPortEntry = widget.NewEntry()
+	// d.proxyAddrEntry = widget.NewEntry()
+	// d.proxyPortEntry = widget.NewEntry()
 	// d.proxyModeSelect = widget.NewSelect([]string{"socks5", "http"}, nil)
 	d.proxyModeSelect = widget.NewRadioGroup([]string{"socks5", "http"}, nil)
 	d.proxyModeSelect.Horizontal = true // Make radio buttons horizontal
@@ -76,8 +77,8 @@ func (d *EditDialog) createFormFields() {
 func (d *EditDialog) initializeFields() {
 	d.connectionsEntry.SetText("3")
 	d.maxRetriesEntry.SetText("3")
-	d.proxyAddrEntry.SetText("127.0.0.1")
-	d.proxyPortEntry.SetText("1080")
+	// d.proxyAddrEntry.SetText("127.0.0.1")
+	// d.proxyPortEntry.SetText("1080")
 	d.proxyModeSelect.SetSelected("socks5")
 }
 
@@ -91,40 +92,24 @@ func (d *EditDialog) populateFields() {
 		d.passwordEntry.SetText(d.conn.Config.Password)
 		d.connectionsEntry.SetText(fmt.Sprintf("%d", d.conn.Config.Connections))
 		d.maxRetriesEntry.SetText(fmt.Sprintf("%d", d.conn.Config.MaxRetries))
-		d.proxyAddrEntry.SetText(d.conn.Config.Proxy.ListenAddr)
-		d.proxyPortEntry.SetText(fmt.Sprintf("%d", d.conn.Config.Proxy.ListenPort))
-		d.proxyModeSelect.SetSelected(d.conn.Config.Proxy.Mode)
+		// d.proxyAddrEntry.SetText(d.proxy.ListenAddr)
+		// d.proxyPortEntry.SetText(fmt.Sprintf("%d", d.proxy.ListenPort))
+		d.proxyModeSelect.SetSelected(d.conn.Config.Mode)
 	}
 }
 
 func (d *EditDialog) createDialogContent() fyne.CanvasObject {
-	// Define consistent sizes
-	entryWidth := float32(200)
-	entryHeight := float32(40)
-	size := fyne.NewSize(entryWidth, entryHeight)
-
-	// Set size for all entries
-	entries := []*widget.Entry{
-		d.nameEntry, d.addressEntry, d.portEntry,
-		d.userEntry, d.passwordEntry,
-		d.connectionsEntry, d.maxRetriesEntry,
-		d.proxyAddrEntry, d.proxyPortEntry,
-	}
-
-	for _, entry := range entries {
-		entry.Resize(size)
-	}
-
 	basicInfo := widget.NewForm(&widget.FormItem{Text: "Name", Widget: d.nameEntry})
 	serverInfo := container.NewGridWithColumns(2,
 		widget.NewForm(&widget.FormItem{Text: "IP", Widget: d.addressEntry}),
 		widget.NewForm(&widget.FormItem{Text: "Port", Widget: d.portEntry}),
+		widget.NewForm(&widget.FormItem{Text: "Mode", Widget: d.proxyModeSelect}),
 	)
 	basicCard := widget.NewCard("Basic Information", "Connection details",
 		container.NewVBox(basicInfo, serverInfo),
 	)
 
-	authInfo := container.NewGridWithColumns(2,
+	authInfo := container.NewGridWithRows(2,
 		widget.NewForm(&widget.FormItem{Text: "Username", Widget: d.userEntry}),
 		widget.NewForm(&widget.FormItem{Text: "Password", Widget: d.passwordEntry}),
 	)
@@ -140,14 +125,14 @@ func (d *EditDialog) createDialogContent() fyne.CanvasObject {
 		container.NewPadded(connectionSettings),
 	)
 
-	proxySettings := container.NewGridWithColumns(2,
-		widget.NewForm(&widget.FormItem{Text: "IP", Widget: d.proxyAddrEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Port", Widget: d.proxyPortEntry}),
-		widget.NewForm(&widget.FormItem{Text: "Mode", Widget: d.proxyModeSelect}),
-	)
-	proxyCard := widget.NewCard("Proxy Settings", "Proxy server configuration",
-		container.NewPadded(proxySettings),
-	)
+	// proxySettings := container.NewGridWithColumns(2,
+	// 	// widget.NewForm(&widget.FormItem{Text: "IP", Widget: d.proxyAddrEntry}),
+	// 	// widget.NewForm(&widget.FormItem{Text: "Port", Widget: d.proxyPortEntry}),
+	// 	widget.NewForm(&widget.FormItem{Text: "Mode", Widget: d.proxyModeSelect}),
+	// )
+	// proxyCard := widget.NewCard("Proxy Settings", "Proxy server configuration",
+	// 	container.NewPadded(proxySettings),
+	// )
 
 	saveBtn := widget.NewButtonWithIcon("Save Connection", theme.DocumentSaveIcon(), func() {
 		if err := d.validateAndSave(); err != nil {
@@ -174,7 +159,7 @@ func (d *EditDialog) createDialogContent() fyne.CanvasObject {
 		basicCard, widget.NewSeparator(),
 		authCard, widget.NewSeparator(),
 		connectionCard, widget.NewSeparator(),
-		proxyCard, widget.NewSeparator(),
+		// proxyCard, widget.NewSeparator(),
 		buttons,
 	))
 }
@@ -191,7 +176,7 @@ func (d *EditDialog) validateAndSave() error {
 
 	connections, _ := strconv.Atoi(d.connectionsEntry.Text)
 	maxRetries, _ := strconv.Atoi(d.maxRetriesEntry.Text)
-	proxyPort, _ := strconv.Atoi(d.proxyPortEntry.Text)
+	// proxyPort, _ := strconv.Atoi(d.proxyPortEntry.Text)
 
 	if connections <= 0 {
 		connections = 3
@@ -199,9 +184,9 @@ func (d *EditDialog) validateAndSave() error {
 	if maxRetries <= 0 {
 		maxRetries = 3
 	}
-	if proxyPort <= 0 {
-		proxyPort = 1080
-	}
+	// if proxyPort <= 0 {
+	// 	proxyPort = 1080
+	// }
 
 	config := &models.ServerConfig{
 		Name:        d.nameEntry.Text,
@@ -209,13 +194,9 @@ func (d *EditDialog) validateAndSave() error {
 		Port:        port,
 		User:        d.userEntry.Text,
 		Password:    d.passwordEntry.Text,
+		Mode:        d.proxyModeSelect.Selected,
 		Connections: connections,
 		MaxRetries:  maxRetries,
-		Proxy: models.ProxyConfig{
-			ListenAddr: d.proxyAddrEntry.Text,
-			ListenPort: proxyPort,
-			Mode:       d.proxyModeSelect.Selected,
-		},
 	}
 
 	d.conn.Name = d.nameEntry.Text
@@ -223,10 +204,12 @@ func (d *EditDialog) validateAndSave() error {
 	d.conn.Port = d.portEntry.Text
 	d.conn.Config = config
 
+	d.conn.ID = util.HashString(fmt.Sprintf("%s%d%s", config.Host, config.Port, config.Mode))
+
 	appConfig := d.configManager.LoadConfig()
 	found := false
 	for i, c := range appConfig.Connections {
-		if c.Address == d.conn.Address && c.Port == d.conn.Port {
+		if c.ID == d.conn.ID {
 			appConfig.Connections[i] = d.conn
 			found = true
 			break
