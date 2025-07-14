@@ -106,3 +106,7 @@ func (l *ConnectionList) SetOnDelete(callback func(*models.Connection)) {
 func (l *ConnectionList) SetOnSelect(callback func(*models.Connection)) {
 	l.onSelect = callback
 }
+
+func (l *ConnectionList) SetStats(connections []*models.Connection) {
+	
+}

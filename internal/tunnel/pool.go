@@ -190,7 +190,7 @@ func (p *ConnectionPool) GetStats() PoolStats {
 	defer p.mu.RUnlock()
 
 	stats := PoolStats{
-		ServerName:   p.server.Name,
+		ServerName:   fmt.Sprintf("%s:%s:%s", p.server.Name, p.server.Address, p.server.Port),
 		TotalTunnels: len(p.tunnels),
 		Tunnels:      make([]TunnelStats, 0, len(p.tunnels)),
 	}

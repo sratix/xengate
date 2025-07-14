@@ -4,6 +4,7 @@ go 1.23.5
 
 require (
 	fyne.io/fyne/v2 v2.6.1
+	github.com/ajstarks/fc v0.0.0-20250614000858-d9360cb1f1b8
 	github.com/json-iterator/go v1.1.12
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/ory/dockertest/v3 v3.12.0
@@ -14,7 +15,6 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.39.0
 	golang.org/x/net v0.41.0
-	golang.org/x/sys v0.33.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
@@ -75,6 +75,7 @@ require (
 	github.com/yuin/goldmark v1.7.8 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/image v0.24.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.26.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

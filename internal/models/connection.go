@@ -34,3 +34,12 @@ type Connection struct {
 	Status  ConnectionStatus `json:"status"`
 	Config  *ServerConfig    `json:"config"`
 }
+
+type Stats struct {
+	ServerName    string `json:"server_name"`
+	TotalTunnels  int    `json:"total_tunnels"`
+	TotalRequests int64  `json:"total_requests"`
+	TotalBytes    int64  `json:"total_bytes"`
+	Active        int64  `json:"active"`
+	Connected     int    `json:"connected"`
+}

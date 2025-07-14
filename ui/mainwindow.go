@@ -3,7 +3,10 @@ package ui
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
+	"text/tabwriter"
+	"time"
 
 	"xengate/backend"
 	"xengate/internal/models"
@@ -109,8 +112,8 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 
 	m.Man = tunnel.NewManager()
 
-	socksServer, _ := proxy.NewProxy("socks5", "192.168.1.0", 1080, m.Man)
-	httpServer, _ := proxy.NewProxy("http", "192.168.1.0", 1090, m.Man)
+	socksServer, _ := proxy.NewProxy("socks5", "127.0.0.1", 1080, m.Man)
+	httpServer, _ := proxy.NewProxy("http", "127.0.0.1", 1090, m.Man)
 	// if err != nil {
 	// 	// fmt.Errorf("failed to create proxy: %w", err)
 	// }
@@ -133,7 +136,56 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 
 	m.addShortcuts()
 
+	go m.statsReporter(m.proxyCtx, 20*time.Second)
+
 	return m
+}
+
+func (m *MainWindow) statsReporter(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			fmt.Println("\n=== Connection Pool Statistics ===")
+
+			stats := m.Man.GetStats()
+
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintln(w, "Server\tPool\tTunnel\tStatus\tActive\tTotal Transfer\tRequests")
+			fmt.Fprintln(w, "------\t----\t------\t------\t------\t--------------\t--------")
+
+			for serverName, poolStats := range stats {
+				for i, tunnelStats := range poolStats.Tunnels {
+					status := "Connected"
+					if !tunnelStats.Connected {
+						status = "Disconnected"
+					}
+
+					serverCol := ""
+					poolCol := ""
+					if i == 0 {
+						serverCol = serverName
+						poolCol = fmt.Sprintf("%d/%d", poolStats.Connected, poolStats.TotalTunnels)
+					}
+
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\t%d\n",
+						serverCol,
+						poolCol,
+						tunnelStats.ID,
+						status,
+						tunnelStats.Active,
+						util.BytesToSizeString(tunnelStats.TotalBytes),
+						tunnelStats.RequestCount)
+				}
+			}
+			w.Flush()
+			fmt.Println()
+		}
+	}
 }
 
 func (m *MainWindow) initUI() {
