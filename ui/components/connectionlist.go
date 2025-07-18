@@ -1,11 +1,16 @@
 package components
 
 import (
+	"fmt"
+
 	"xengate/internal/common"
 	"xengate/internal/models"
 	"xengate/internal/storage"
+	"xengate/internal/tunnel"
+	"xengate/ui/util"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 )
@@ -21,6 +26,7 @@ type ConnectionList struct {
 	onShare       func(*models.Connection)
 	onDelete      func(*models.Connection)
 	onRun         func(*models.Connection)
+	renderer      *connectionListRenderer // اضافه کردن فیلد renderer
 }
 
 func NewConnectionList(app fyne.App, window fyne.Window) *ConnectionList {
@@ -111,5 +117,60 @@ func (l *ConnectionList) SetOnRun(callback func(*models.Connection)) {
 	l.onRun = callback
 }
 
-// func (l *ConnectionList) SetStats(connections []*models.Connection) {
-// }
+func (l *ConnectionList) UpdateStats(conn *models.Connection) {
+	if l.renderer == nil || conn == nil {
+		return
+	}
+
+	// آپدیت آمار تانل‌ها
+	if tunnelLabel, exists := l.renderer.statusLabels[conn.ID+"_tunnels"]; exists && tunnelLabel != nil {
+		tunnelLabel.SetText(fmt.Sprintf("%d/%d",
+			conn.Stats.Connected,
+			conn.Stats.TotalTunnels))
+		canvas.Refresh(tunnelLabel)
+	}
+
+	// آپدیت آمار ترافیک
+	if trafficLabel, exists := l.renderer.statusLabels[conn.ID+"_traffic"]; exists && trafficLabel != nil {
+		trafficLabel.SetText(util.BytesToSizeString(conn.Stats.TotalBytes))
+		canvas.Refresh(trafficLabel)
+	}
+}
+
+func (l *ConnectionList) BatchUpdateStats(stats map[string]tunnel.PoolStats) {
+	needsRefresh := false
+
+	for _, conn := range l.connections {
+		if poolStats, exists := stats[conn.Name]; exists {
+			if conn.Stats == nil {
+				conn.Stats = &models.Stats{}
+			}
+
+			// آپدیت آمار
+			// oldBytes := conn.Stats.TotalBytes
+			conn.Stats.Connected = poolStats.Connected
+			conn.Stats.TotalTunnels = poolStats.TotalTunnels
+			conn.Stats.TotalBytes = poolStats.TotalBytes
+			conn.Stats.Active = poolStats.ActiveConnections
+
+			// آپدیت labels
+			if tunnelLabel, exists := l.renderer.statusLabels[conn.ID+"_tunnels"]; exists && tunnelLabel != nil {
+				tunnelLabel.SetText(fmt.Sprintf("%d/%d",
+					conn.Stats.Connected,
+					conn.Stats.TotalTunnels))
+				canvas.Refresh(tunnelLabel)
+				needsRefresh = true
+			}
+
+			if trafficLabel, exists := l.renderer.statusLabels[conn.ID+"_traffic"]; exists && trafficLabel != nil {
+				trafficLabel.SetText(util.BytesToSizeString(conn.Stats.TotalBytes))
+				canvas.Refresh(trafficLabel)
+				needsRefresh = true
+			}
+		}
+	}
+
+	if needsRefresh {
+		l.Refresh()
+	}
+}

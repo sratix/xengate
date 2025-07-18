@@ -152,50 +152,45 @@ func (m *MainWindow) statsReporter(ctx context.Context, interval time.Duration) 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			// fmt.Println("\n=== Connection Pool Statistics ===")
-
 			stats := m.Man.GetStats()
-			// m.Man.GetStats()
-
-			// w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			// fmt.Fprintln(w, "Server\tPool\tTunnel\tStatus\tActive\tTotal Transfer\tRequests")
-			// fmt.Fprintln(w, "------\t----\t------\t------\t------\t--------------\t--------")
 
 			for serverName, poolStats := range stats {
-				_ = serverName
-				_ = poolStats
+				for _, conn := range m.connectionList.GetConnections() {
+					if conn.ID == poolStats.ID {
+						// آپدیت آمار در ساختار Connection
+						conn.Stats = &models.Stats{
+							ServerName:    serverName,
+							TotalTunnels:  poolStats.TotalTunnels,
+							TotalRequests: poolStats.TotalRequests,
+							TotalBytes:    poolStats.TotalBytes,
+							Active:        poolStats.ActiveConnections,
+							Connected:     poolStats.Connected,
+						}
 
-
+						// آپدیت مستقیم UI
+						m.connectionList.UpdateStats(conn)
+						break
+					}
+				}
 			}
-
-			// for i, tunnelStats := range poolStats.Tunnels {
-			// 	// status := "Connected"
-			// 	// if !tunnelStats.Connected {
-			// 	// 	status = "Disconnected"
-			// 	// }
-
-			// 	// serverCol := ""
-			// 	// poolCol := ""
-			// 	// if i == 0 {
-			// 	// 	serverCol = serverName
-			// 	// 	poolCol = fmt.Sprintf("%d/%d", poolStats.Connected, poolStats.TotalTunnels)
-			// 	// }
-
-			// 	// fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\t%d\n",
-			// 	// 	serverCol,
-			// 	// 	poolCol,
-			// 	// 	tunnelStats.ID,
-			// 	// 	status,
-			// 	// 	tunnelStats.Active,
-			// 	// 	util.BytesToSizeString(tunnelStats.TotalBytes),
-			// 	// 	tunnelStats.RequestCount)
-			// }
 		}
-		// w.Flush()
-		// fmt.Println()
-		// }
 	}
 }
+
+// func (m *MainWindow) statsReporter(ctx context.Context, interval time.Duration) {
+// 	ticker := time.NewTicker(interval)
+// 	defer ticker.Stop()
+
+// 	for {
+// 		select {
+// 		case <-ctx.Done():
+// 			return
+// 		case <-ticker.C:
+// 			stats := m.Man.GetStats()
+// 			m.connectionList.BatchUpdateStats(stats)
+// 		}
+// 	}
+// }
 
 func (m *MainWindow) initUI() {
 	m.initToolbar()
