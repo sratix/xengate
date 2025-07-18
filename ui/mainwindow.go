@@ -143,40 +143,6 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 	return m
 }
 
-func (m *MainWindow) statsReporter(ctx context.Context, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			stats := m.Man.GetStats()
-
-			for serverName, poolStats := range stats {
-				for _, conn := range m.connectionList.GetConnections() {
-					if conn.ID == poolStats.ID {
-						// آپدیت آمار در ساختار Connection
-						conn.Stats = &models.Stats{
-							ServerName:    serverName,
-							TotalTunnels:  poolStats.TotalTunnels,
-							TotalRequests: poolStats.TotalRequests,
-							TotalBytes:    poolStats.TotalBytes,
-							Active:        poolStats.ActiveConnections,
-							Connected:     poolStats.Connected,
-						}
-
-						// آپدیت مستقیم UI
-						m.connectionList.UpdateStats(conn)
-						break
-					}
-				}
-			}
-		}
-	}
-}
-
 // func (m *MainWindow) statsReporter(ctx context.Context, interval time.Duration) {
 // 	ticker := time.NewTicker(interval)
 // 	defer ticker.Stop()
@@ -187,10 +153,44 @@ func (m *MainWindow) statsReporter(ctx context.Context, interval time.Duration) 
 // 			return
 // 		case <-ticker.C:
 // 			stats := m.Man.GetStats()
-// 			m.connectionList.BatchUpdateStats(stats)
+
+// 			for serverName, poolStats := range stats {
+// 				for _, conn := range m.connectionList.GetConnections() {
+// 					if conn.ID == poolStats.ID {
+// 						// آپدیت آمار در ساختار Connection
+// 						conn.Stats = &models.Stats{
+// 							ServerName:    serverName,
+// 							TotalTunnels:  poolStats.TotalTunnels,
+// 							TotalRequests: poolStats.TotalRequests,
+// 							TotalBytes:    poolStats.TotalBytes,
+// 							Active:        poolStats.ActiveConnections,
+// 							Connected:     poolStats.Connected,
+// 						}
+
+// 						// آپدیت مستقیم UI
+// 						m.connectionList.UpdateStats(conn)
+// 						break
+// 					}
+// 				}
+// 			}
 // 		}
 // 	}
 // }
+
+func (m *MainWindow) statsReporter(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			stats := m.Man.GetStats()
+			m.connectionList.BatchUpdateStats(stats)
+		}
+	}
+}
 
 func (m *MainWindow) initUI() {
 	m.initToolbar()
