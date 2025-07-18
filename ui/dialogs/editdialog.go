@@ -204,7 +204,9 @@ func (d *EditDialog) validateAndSave() error {
 	d.conn.Port = d.portEntry.Text
 	d.conn.Config = config
 
-	d.conn.ID = util.HashString(fmt.Sprintf("%s%d%s", config.Host, config.Port, config.Mode))
+	fmt.Printf("%s%d", config.Host, config.Port)
+
+	d.conn.ID = util.HashString(fmt.Sprintf("%s%d", config.Host, config.Port))
 
 	appConfig := d.configManager.LoadConfig()
 	found := false
@@ -217,6 +219,7 @@ func (d *EditDialog) validateAndSave() error {
 	}
 
 	if !found {
+		fmt.Println("OMADAM INJA!!!!")
 		appConfig.Connections = append(appConfig.Connections, d.conn)
 	}
 

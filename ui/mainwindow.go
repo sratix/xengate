@@ -3,9 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
-	"text/tabwriter"
 	"time"
 
 	"xengate/backend"
@@ -28,6 +26,8 @@ import (
 
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type MainWindow struct {
@@ -78,6 +78,8 @@ type MainWindow struct {
 	proxyErrCh  chan error
 	proxyCtx    context.Context
 	proxyCancel context.CancelFunc
+
+	timerPanel *components.TimerPanel
 }
 
 func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string, app *backend.App) MainWindow {
@@ -136,7 +138,7 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 
 	m.addShortcuts()
 
-	go m.statsReporter(m.proxyCtx, 20*time.Second)
+	go m.statsReporter(m.proxyCtx, 10*time.Second)
 
 	return m
 }
@@ -150,41 +152,48 @@ func (m *MainWindow) statsReporter(ctx context.Context, interval time.Duration) 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			fmt.Println("\n=== Connection Pool Statistics ===")
+			// fmt.Println("\n=== Connection Pool Statistics ===")
 
 			stats := m.Man.GetStats()
+			// m.Man.GetStats()
 
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "Server\tPool\tTunnel\tStatus\tActive\tTotal Transfer\tRequests")
-			fmt.Fprintln(w, "------\t----\t------\t------\t------\t--------------\t--------")
+			// w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			// fmt.Fprintln(w, "Server\tPool\tTunnel\tStatus\tActive\tTotal Transfer\tRequests")
+			// fmt.Fprintln(w, "------\t----\t------\t------\t------\t--------------\t--------")
 
 			for serverName, poolStats := range stats {
-				for i, tunnelStats := range poolStats.Tunnels {
-					status := "Connected"
-					if !tunnelStats.Connected {
-						status = "Disconnected"
-					}
+				_ = serverName
+				_ = poolStats
 
-					serverCol := ""
-					poolCol := ""
-					if i == 0 {
-						serverCol = serverName
-						poolCol = fmt.Sprintf("%d/%d", poolStats.Connected, poolStats.TotalTunnels)
-					}
 
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\t%d\n",
-						serverCol,
-						poolCol,
-						tunnelStats.ID,
-						status,
-						tunnelStats.Active,
-						util.BytesToSizeString(tunnelStats.TotalBytes),
-						tunnelStats.RequestCount)
-				}
 			}
-			w.Flush()
-			fmt.Println()
+
+			// for i, tunnelStats := range poolStats.Tunnels {
+			// 	// status := "Connected"
+			// 	// if !tunnelStats.Connected {
+			// 	// 	status = "Disconnected"
+			// 	// }
+
+			// 	// serverCol := ""
+			// 	// poolCol := ""
+			// 	// if i == 0 {
+			// 	// 	serverCol = serverName
+			// 	// 	poolCol = fmt.Sprintf("%d/%d", poolStats.Connected, poolStats.TotalTunnels)
+			// 	// }
+
+			// 	// fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\t%d\n",
+			// 	// 	serverCol,
+			// 	// 	poolCol,
+			// 	// 	tunnelStats.ID,
+			// 	// 	status,
+			// 	// 	tunnelStats.Active,
+			// 	// 	util.BytesToSizeString(tunnelStats.TotalBytes),
+			// 	// 	tunnelStats.RequestCount)
+			// }
 		}
+		// w.Flush()
+		// fmt.Println()
+		// }
 	}
 }
 
@@ -221,12 +230,37 @@ func (m *MainWindow) initUI() {
 		}
 	})
 
+	// Create basic timer panel
+	m.timerPanel = components.NewTimerPanel()
+
+	m.timerPanel.SetOnClick(func(status bool) {
+		for _, c := range m.connectionList.GetConnections() {
+			if status {
+				c.Status = models.StatusActive
+				m.Man.Start(context.Background(), c)
+			} else {
+				c.Status = models.StatusInactive
+				m.Man.Stop(c.Name)
+			}
+			m.connectionList.Refresh()
+		}
+	})
+
+	logHandler := components.NewLogHandler(1000) // نگهداری 1000 خط آخر
+
+	// // تنظیم logrus
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
+	log.SetLevel(log.DebugLevel)
+
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Connections", container.NewVScroll(m.connectionList)),
-		container.NewTabItem("Log", components.NewLogWidget(1000)),
+		container.NewTabItem("Log", logHandler.GetContainer()), // components.NewLogWidget(1000)),
+		// container.NewTabItem("Statistics", getStatsContent()),
 	)
 
-	m.Window.SetContent(container.NewBorder(m.toolBar, nil, nil, nil, container.NewPadded(tabs)))
+	m.Window.SetContent(container.NewBorder(m.toolBar, container.NewBorder(nil, nil, container.NewHBox(container.NewPadded(container.NewCenter(widget.NewLabel("SOCKS5: 127.0.0.1:1080 \nHTTP    : 127.0.0.1:1090\t")))), container.NewPadded(m.timerPanel), nil), nil, nil, container.NewPadded(tabs)))
 }
 
 func (m *MainWindow) DesiredSize() fyne.Size {

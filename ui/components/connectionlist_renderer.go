@@ -121,7 +121,7 @@ func (r *connectionListRenderer) createConnectionItem(conn *models.Connection) f
 				runBtn)),
 		),
 		container.NewHBox(
-			addressLabel, proxyLabel,
+			addressLabel, proxyLabel, layout.NewSpacer(),
 		),
 	)
 

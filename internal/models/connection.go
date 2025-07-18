@@ -31,8 +31,9 @@ type Connection struct {
 	Address string           `json:"address"`
 	Port    string           `json:"port"`
 	Type    string           `json:"type"`
-	Status  ConnectionStatus `json:"status"`
 	Config  *ServerConfig    `json:"config"`
+	Status  ConnectionStatus `json:"status"`
+	Stats   *Stats
 }
 
 type Stats struct {

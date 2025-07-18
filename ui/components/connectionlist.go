@@ -23,15 +23,6 @@ type ConnectionList struct {
 	onRun         func(*models.Connection)
 }
 
-func (l *ConnectionList) GetConfigManager() common.ConfigManager {
-	return l.configManager
-}
-
-func (l *ConnectionList) LoadConnections() {
-	config := l.configManager.LoadConfig()
-	l.connections = config.Connections
-}
-
 func NewConnectionList(app fyne.App, window fyne.Window) *ConnectionList {
 	list := &ConnectionList{
 		App:         app,
@@ -89,6 +80,19 @@ func (l *ConnectionList) RemoveConnection(conn *models.Connection) {
 	}
 
 	l.Refresh()
+}
+
+func (l *ConnectionList) GetConnections() []*models.Connection {
+	return l.connections
+}
+
+func (l *ConnectionList) GetConfigManager() common.ConfigManager {
+	return l.configManager
+}
+
+func (l *ConnectionList) LoadConnections() {
+	config := l.configManager.LoadConfig()
+	l.connections = config.Connections
 }
 
 func (l *ConnectionList) SetOnEdit(callback func(*models.Connection)) {

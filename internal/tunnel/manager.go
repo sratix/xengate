@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"sync/atomic"
+	"time"
 
 	"xengate/internal/models"
 
@@ -115,30 +115,67 @@ func (m *Manager) StopAll() {
 }
 
 func (m *Manager) Forward(localConn net.Conn, targetAddr string) error {
+	logger := log.WithFields(log.Fields{
+		"target": targetAddr,
+	})
+
 	m.mu.RLock()
 	if len(m.pools) == 0 {
 		m.mu.RUnlock()
+		logger.Error("No available connection pools")
 		return fmt.Errorf("no available connection pools")
 	}
 
-	// Create a list of available pools
 	availablePools := make([]*ConnectionPool, 0, len(m.pools))
 	for _, pool := range m.pools {
-		if pool.GetTunnel() != nil {
+		if tunnel := pool.GetTunnel(); tunnel != nil && tunnel.IsConnected() {
 			availablePools = append(availablePools, pool)
 		}
 	}
 	m.mu.RUnlock()
 
 	if len(availablePools) == 0 {
+		logger.Error("No available tunnels")
 		return fmt.Errorf("no available tunnels")
 	}
 
-	// Use round-robin to select the next pool
-	idx := int(atomic.AddUint32(&m.roundRobin, 1)-1) % len(availablePools)
-	pool := availablePools[idx]
+	var selectedPool *ConnectionPool
+	minActive := int64(^uint64(0) >> 1)
 
-	return pool.Forward(localConn, targetAddr)
+	for _, pool := range availablePools {
+		stats := pool.GetStats()
+		if stats.ActiveConnections < minActive {
+			minActive = stats.ActiveConnections
+			selectedPool = pool
+		}
+	}
+
+	logger = logger.WithFields(log.Fields{
+		"pool":        selectedPool.server.Name,
+		"activeConns": minActive,
+	})
+	logger.Debug("Selected pool for forwarding")
+
+	errCh := make(chan error, 1)
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	go func() {
+		errCh <- selectedPool.Forward(localConn, targetAddr)
+	}()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			logger.WithError(err).Error("Forward operation failed")
+		} else {
+			logger.Debug("Forward operation completed successfully")
+		}
+		return err
+	case <-timeoutCtx.Done():
+		logger.Error("Forward operation timed out")
+		return fmt.Errorf("forward operation timed out")
+	}
 }
 
 func (m *Manager) GetStats() map[string]PoolStats {
