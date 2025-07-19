@@ -55,6 +55,7 @@ var (
 	// PlayNextIcon      fyne.Resource = theme.NewThemedResource(res.ResPlaylistAddNextSvg)
 	// PlayQueueIcon     fyne.Resource = theme.NewThemedResource(res.ResPlayqueueSvg)
 	ShareIcon fyne.Resource = theme.NewThemedResource(res.ResShareSvg)
+	PingIcon fyne.Resource = theme.NewThemedResource(res.ResPingSvg)
 	// ShuffleIcon       fyne.Resource = theme.NewThemedResource(res.ResShuffleSvg)
 	// TracksIcon        fyne.Resource = theme.NewThemedResource(res.ResMusicnotesSvg)
 	// GenreIcon         fyne.Resource = theme.NewThemedResource(res.ResTheatermasksSvg)

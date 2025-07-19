@@ -98,7 +98,8 @@ android:
 	fyne package -os android \
 		-app-id=$(PACKAGE) \
 		-name $(APPNAME) \
-		-icon $(ICON)
+		-icon $(ICON) \
+		-release
 
 # iOS build
 ios: check-fyne-cross

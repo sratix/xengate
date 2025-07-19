@@ -138,9 +138,50 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 
 	m.addShortcuts()
 
-	go m.statsReporter(m.proxyCtx, 10*time.Second)
+	// go m.statsReporter(m.proxyCtx, 10*time.Second)
 
 	return m
+}
+
+func (m *MainWindow) statsReporter(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			stats := m.Man.GetStats()
+
+			for serverName, poolStats := range stats {
+				for _, conn := range m.connectionList.GetConnections() {
+					if conn.ID == poolStats.ID {
+						// آپدیت آمار در ساختار Connection
+						conn.Stats = &models.Stats{
+							ServerName:    serverName,
+							TotalTunnels:  poolStats.TotalTunnels,
+							TotalRequests: poolStats.TotalRequests,
+							TotalBytes:    poolStats.TotalBytes,
+							Active:        poolStats.ActiveConnections,
+							Connected:     poolStats.Connected,
+						}
+
+						// fmt.Printf("XXXXX:   %+v\n", conn.Stats)
+
+						// آپدیت مستقیم UI
+						m.connectionList.UpdateStats(conn)
+
+						m.connectionList.Refresh()
+
+						// m.connectionList.RefreshStats(conn.ID, conn.Stats)
+
+						break
+					}
+				}
+			}
+		}
+	}
 }
 
 // func (m *MainWindow) statsReporter(ctx context.Context, interval time.Duration) {
@@ -153,44 +194,10 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 // 			return
 // 		case <-ticker.C:
 // 			stats := m.Man.GetStats()
-
-// 			for serverName, poolStats := range stats {
-// 				for _, conn := range m.connectionList.GetConnections() {
-// 					if conn.ID == poolStats.ID {
-// 						// آپدیت آمار در ساختار Connection
-// 						conn.Stats = &models.Stats{
-// 							ServerName:    serverName,
-// 							TotalTunnels:  poolStats.TotalTunnels,
-// 							TotalRequests: poolStats.TotalRequests,
-// 							TotalBytes:    poolStats.TotalBytes,
-// 							Active:        poolStats.ActiveConnections,
-// 							Connected:     poolStats.Connected,
-// 						}
-
-// 						// آپدیت مستقیم UI
-// 						m.connectionList.UpdateStats(conn)
-// 						break
-// 					}
-// 				}
-// 			}
+// 			m.connectionList.BatchUpdateStats(stats)
 // 		}
 // 	}
 // }
-
-func (m *MainWindow) statsReporter(ctx context.Context, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			stats := m.Man.GetStats()
-			m.connectionList.BatchUpdateStats(stats)
-		}
-	}
-}
 
 func (m *MainWindow) initUI() {
 	m.initToolbar()
@@ -241,7 +248,7 @@ func (m *MainWindow) initUI() {
 		}
 	})
 
-	logHandler := components.NewLogHandler(1000) // نگهداری 1000 خط آخر
+	// logHandler := components.NewLogHandler(1000) // نگهداری 1000 خط آخر
 
 	// // تنظیم logrus
 	log.SetFormatter(&log.TextFormatter{
@@ -251,7 +258,7 @@ func (m *MainWindow) initUI() {
 
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Connections", container.NewVScroll(m.connectionList)),
-		container.NewTabItem("Log", logHandler.GetContainer()), // components.NewLogWidget(1000)),
+		// container.NewTabItem("Log", logHandler.GetContainer()), // components.NewLogWidget(1000)),
 		// container.NewTabItem("Statistics", getStatsContent()),
 	)
 
