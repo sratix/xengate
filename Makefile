@@ -67,6 +67,17 @@ linux: check-fyne-cross
 		-icon=$(ICON) \
 		-output $(APPNAME)
 
+# ARM builds
+arm: check-fyne-cross
+	@echo "Building for ARM..."
+	$(FYNE_CROSS) linux \
+		-arch=arm \
+		$(FYNE_FLAGS) \
+		-app-id=$(PACKAGE) \
+		-app-version=$(VERSION) \
+		-icon=$(ICON) \
+		-output $(APPNAME)
+
 # macOS builds
 darwin: check-fyne-cross
 	@echo "Building for macOS..."

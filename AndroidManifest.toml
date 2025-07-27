@@ -3,6 +3,9 @@ target_sdk_version = "33"
 min_sdk_version = "21"
 permissions = [
     "android.permission.INTERNET"
+    "android.permission.FOREGROUND_SERVICE"
+    "android.permission.WAKE_LOCK"
+    "android.permission.RECEIVE_BOOT_COMPLETED"
 ]
 
 [manifest.application]

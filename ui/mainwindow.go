@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,6 +72,9 @@ type MainWindow struct {
 
 	fyneApp fyne.App
 
+	socksServer proxy.Proxy
+	httpServer  proxy.Proxy
+
 	Man *tunnel.Manager
 
 	wg sync.WaitGroup
@@ -79,7 +83,12 @@ type MainWindow struct {
 	proxyCtx    context.Context
 	proxyCancel context.CancelFunc
 
+	tunController *tunnel.TunController
+	tunConfig     *models.TunConfig
+
 	timerPanel *components.TimerPanel
+
+	ipWidget *widget.Entry
 }
 
 func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string, app *backend.App) MainWindow {
@@ -88,6 +97,15 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 		Window:  fyneApp.NewWindow(displayAppName),
 		theme:   myTheme.NewMyTheme(&app.Config.Theme, app.ThemesDir()),
 		fyneApp: fyneApp,
+
+		tunConfig: &models.TunConfig{
+			// Enabled:    false,
+			DeviceName: "tun0",
+			Address:    "10.0.0.1/24",
+			Gateway:    "10.0.0.1",
+			MTU:        1500,
+			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+		},
 	}
 
 	m.theme.NormalFont = app.Config.Application.FontNormalTTF
@@ -113,28 +131,6 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 	})
 
 	m.Man = tunnel.NewManager()
-
-	socksServer, _ := proxy.NewProxy("socks5", "127.0.0.1", 1080, m.Man)
-	httpServer, _ := proxy.NewProxy("http", "127.0.0.1", 1090, m.Man)
-	// if err != nil {
-	// 	// fmt.Errorf("failed to create proxy: %w", err)
-	// }
-
-	// Start proxy in background
-	m.proxyErrCh = make(chan error, 1)
-	m.proxyCtx, m.proxyCancel = context.WithCancel(context.Background())
-	// defer proxyCancel()
-
-	// m.wg.Add(1)
-	// go func() {
-	// defer m.wg.Done()
-	if err := socksServer.Start(m.proxyCtx); err != nil {
-		//	m.proxyErrCh <- err
-	}
-	if err := httpServer.Start(m.proxyCtx); err != nil {
-		//	m.proxyErrCh <- err
-	}
-	//}()
 
 	m.addShortcuts()
 
@@ -226,9 +222,12 @@ func (m *MainWindow) initUI() {
 	m.connectionList.SetOnRun(func(conn *models.Connection) {
 		switch conn.Status {
 		case models.StatusActive:
+
+			//}()
 			m.Man.Start(context.Background(), conn)
 		case models.StatusInactive:
 			m.Man.Stop(conn.Name)
+
 		}
 	})
 
@@ -236,6 +235,23 @@ func (m *MainWindow) initUI() {
 	m.timerPanel = components.NewTimerPanel()
 
 	m.timerPanel.SetOnClick(func(status bool) {
+		if status {
+			m.socksServer, _ = proxy.NewProxy("socks5", strings.TrimSpace(m.ipWidget.Text), 1080, m.Man)
+			m.httpServer, _ = proxy.NewProxy("http", strings.TrimSpace(m.ipWidget.Text), 1090, m.Man)
+			// tuntapproxy, _ := proxy.NewProxy("tuntap", "10.0.0.1", 0, m.Man)
+
+			// if err := tuntapproxy.Start(context.Background()); err != nil {
+			// 	log.Fatal(err)
+			// }
+
+			m.socksServer.Start(context.Background())
+			m.httpServer.Start(context.Background())
+
+		} else {
+			m.socksServer.Stop()
+			m.httpServer.Stop()
+		}
+
 		for _, c := range m.connectionList.GetConnections() {
 			if status {
 				c.Status = models.StatusActive
@@ -246,6 +262,34 @@ func (m *MainWindow) initUI() {
 			}
 			m.connectionList.Refresh()
 		}
+
+		// m.handleStart()
+
+		// tunConfig := &models.TunConfig{
+		// 	DeviceName: "tun0",
+		// 	Address:    "10.0.0.1/24",
+		// 	Gateway:    "10.0.0.1",
+		// 	MTU:        1500,
+		// 	DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+		// }
+
+		// proxyConfig := &models.ProxyConfig{
+		// 	ListenAddr: "127.0.0.1",
+		// 	ListenPort: 1080,
+		// 	// Username: "",
+		// 	// Password: "",
+		// }
+
+		// controller, err := tunnel.NewTunController(tunConfig, proxyConfig)
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+
+		// ctx := context.Background()
+		// if err := controller.Start(ctx); err != nil {
+		// 	log.Fatal(err)
+		// }
+		// defer controller.Stop()
 	})
 
 	// logHandler := components.NewLogHandler(1000) // نگهداری 1000 خط آخر
@@ -262,7 +306,17 @@ func (m *MainWindow) initUI() {
 		// container.NewTabItem("Statistics", getStatsContent()),
 	)
 
-	m.Window.SetContent(container.NewBorder(m.toolBar, container.NewBorder(nil, nil, container.NewHBox(container.NewPadded(container.NewCenter(widget.NewLabel("SOCKS5: 127.0.0.1:1080 \nHTTP    : 127.0.0.1:1090\t")))), container.NewPadded(m.timerPanel), nil), nil, nil, container.NewPadded(tabs)))
+	m.ipWidget = widget.NewEntry()
+	m.ipWidget.SetText("0.0.0.0")
+
+	portLabel := widget.NewLabel("SOCKS5[1080] HTTP[1090]")
+	portLabel.TextStyle = fyne.TextStyle{Monospace: true}
+
+	details := container.NewHBox(
+		container.NewGridWithColumns(2, m.ipWidget, portLabel),
+	)
+
+	m.Window.SetContent(container.NewBorder(m.toolBar, container.NewBorder(nil, nil, container.NewHBox(container.NewPadded(container.NewCenter(details))), container.NewPadded(m.timerPanel), nil), nil, nil, container.NewPadded(tabs)))
 }
 
 func (m *MainWindow) DesiredSize() fyne.Size {
@@ -474,4 +528,49 @@ func (m *MainWindow) CloseEscapablePopUp() {
 		m.escapablePopUp = nil
 		m.doModalClosed()
 	}
+}
+
+// func (m *MainWindow) handleStart() {
+// 	if m.tunController == nil {
+// 		controller, err := tunnel.NewTunController(m.tunConfig)
+// 		if err != nil {
+// 			m.showError("Failed to create TUN controller", err)
+// 			return
+// 		}
+// 		m.tunController = controller
+// 	}
+
+// 	err := m.tunController.Start()
+// 	if err != nil {
+// 		m.showError("Failed to start TUN", err)
+// 		return
+// 	}
+
+// 	// m.statusLabel.SetText("Status: Running")
+// }
+
+// func (m *MainWindow) handleStop() {
+// 	if m.tunController != nil {
+// 		err := m.tunController.Stop()
+// 		if err != nil {
+// 			m.showError("Failed to stop TUN", err)
+// 			return
+// 		}
+// 		// m.statusLabel.SetText("Status: Stopped")
+// 	}
+// }
+
+func (m *MainWindow) showError(title string, err error) {
+	var dialog fyne.CanvasObject
+	dialog = widget.NewModalPopUp(
+		container.NewVBox(
+			widget.NewLabel(title),
+			widget.NewLabel(err.Error()),
+			widget.NewButton("OK", func() {
+				dialog.Hide()
+			}),
+		),
+		m.Window.Canvas(),
+	)
+	dialog.Show()
 }

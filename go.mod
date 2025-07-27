@@ -4,12 +4,11 @@ go 1.23.5
 
 require (
 	fyne.io/fyne/v2 v2.6.1
-	github.com/google/uuid v1.1.2
 	github.com/json-iterator/go v1.1.12
-	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/sirupsen/logrus v1.9.3
+	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/zalando/go-keyring v0.2.6
 	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/zap v1.27.0

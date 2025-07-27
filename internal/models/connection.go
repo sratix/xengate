@@ -26,14 +26,15 @@ type ServerConfig struct {
 }
 
 type Connection struct {
-	ID      string           `json:"id"`
-	Name    string           `json:"name"`
-	Address string           `json:"address"`
-	Port    string           `json:"port"`
-	Type    string           `json:"type"`
-	Config  *ServerConfig    `json:"config"`
-	Status  ConnectionStatus `json:"status"`
-	Stats   *Stats
+	ID        string           `json:"id"`
+	Name      string           `json:"name"`
+	Address   string           `json:"address"`
+	Port      string           `json:"port"`
+	Type      string           `json:"type"`
+	Config    *ServerConfig    `json:"config"`
+	Status    ConnectionStatus `json:"status"`
+	TunConfig *TunConfig       `json:"tun_config,omitempty"`
+	Stats     *Stats
 }
 
 type Stats struct {
@@ -43,4 +44,12 @@ type Stats struct {
 	TotalBytes    int64  `json:"total_bytes"`
 	Active        int64  `json:"active"`
 	Connected     int    `json:"connected"`
+}
+
+type TunConfig struct {
+	DeviceName string
+	Address    string
+	Gateway    string
+	MTU        int
+	DNSServers []string
 }

@@ -18,6 +18,8 @@ func NewProxy(mode string, ip string, port int16, manager *tunnel.Manager) (Prox
 		return NewSocks5Server(ip, port, manager)
 	case "http", "https":
 		return NewHTTPProxy(mode, ip, port, manager), nil
+	case "tuntap":
+		return NewTunTapProxy("tun0", ip, port, manager)
 	default:
 		return nil, fmt.Errorf("unsupported proxy mode: %s", mode)
 	}
