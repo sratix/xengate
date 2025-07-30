@@ -79,4 +79,33 @@ func main() {
 
 	log.Println("Running shutdown tasks...")
 	myApp.Shutdown()
+
+	// var mainWindow ui.MainWindow
+
+	// Create login window
+	// loginWindow := ui.NewLoginWindow(fyneApp)
+	// loginWindow.SetOnComplete(func(isParent bool) {
+	// 	// Create main window after login
+	// 	mainWindow = ui.NewMainWindow(fyneApp, res.AppName, res.DisplayName, res.AppVersion, myApp)
+
+	// 	mainWindow.Window.SetMaster()
+	// 	myApp.OnReactivate = util.FyneDoFunc(mainWindow.Show)
+	// 	myApp.OnExit = util.FyneDoFunc(mainWindow.Quit)
+
+	// 	if !isParent {
+	// 		mainWindow.DisableParentFeatures()
+	// 	}
+
+	// 	mainWindow.Show()
+	// })
+
+	// // Show login window first
+	// loginWindow.ShowAndRun()
+
+	// // Start the main event loop
+	// // fyneApp.Run()
+
+	// Cleanup
+	log.Println("Running shutdown tasks...")
+	myApp.Shutdown()
 }

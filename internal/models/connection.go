@@ -1,4 +1,3 @@
-// Package models contains data structures for xengate's internal logic.
 package models
 
 type ConnectionStatus int

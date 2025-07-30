@@ -27,20 +27,24 @@ const (
 )
 
 type Socks5Server struct {
-	manager  *tunnel.Manager
-	listener net.Listener
-	wg       sync.WaitGroup
-	mu       sync.RWMutex
-	closed   bool
-	ip       string
-	port     int16
+	manager       *tunnel.Manager
+	listener      net.Listener
+	wg            sync.WaitGroup
+	mu            sync.RWMutex
+	closed        bool
+	ip            string
+	port          int16
+	blocklist     *IPBlocklist
+	accessControl *AccessControl
 }
 
 func NewSocks5Server(ip string, port int16, manager *tunnel.Manager) (*Socks5Server, error) {
 	return &Socks5Server{
-		manager: manager,
-		ip:      ip,
-		port:    port,
+		manager:       manager,
+		ip:            ip,
+		port:          port,
+		blocklist:     NewIPBlocklist(),
+		accessControl: NewAccessControl(1 * time.Hour),
 	}, nil
 }
 
@@ -96,8 +100,31 @@ func (s *Socks5Server) acceptLoop(ctx context.Context) {
 }
 
 func (s *Socks5Server) handleConnection(ctx context.Context, conn net.Conn) {
-	defer s.wg.Done()
-	defer conn.Close()
+	clientIP, _, err := net.SplitHostPort(conn.RemoteAddr().String())
+	if err != nil {
+		conn.Close()
+		return
+	}
+
+	// چک کردن بلک لیست
+	if s.blocklist.IsBlocked(clientIP) {
+		log.Debugf("Blocked connection from %s", clientIP)
+		conn.Close()
+		return
+	}
+
+	// چک کردن و شروع سشن
+	if !s.accessControl.StartSession(clientIP) {
+		log.Debugf("Access denied for %s (time limit exceeded)", clientIP)
+		conn.Close()
+		return
+	}
+
+	defer func() {
+		s.accessControl.EndSession(clientIP)
+		s.wg.Done()
+		conn.Close()
+	}()
 
 	// Set timeout for handshake
 	conn.SetDeadline(time.Now().Add(10 * time.Second))
@@ -255,4 +282,12 @@ func (s *Socks5Server) Stop() error {
 
 	s.wg.Wait()
 	return nil
+}
+
+func (s *Socks5Server) BlockIP(ip string) {
+	s.blocklist.Add(ip)
+}
+
+func (s *Socks5Server) UnblockIP(ip string) {
+	s.blocklist.Remove(ip)
 }

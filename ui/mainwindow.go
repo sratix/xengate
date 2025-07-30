@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/shirou/gopsutil/process"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -83,12 +85,13 @@ type MainWindow struct {
 	proxyCtx    context.Context
 	proxyCancel context.CancelFunc
 
-	tunController *tunnel.TunController
-	tunConfig     *models.TunConfig
+	// tunController *tunnel.TunController
+	tunConfig *models.TunConfig
 
 	timerPanel *components.TimerPanel
 
-	ipWidget *widget.Entry
+	ipWidget      *widget.Entry
+	accessControl *proxy.AccessControl
 }
 
 func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string, app *backend.App) MainWindow {
@@ -106,6 +109,8 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 			MTU:        1500,
 			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 		},
+		accessControl: proxy.NewAccessControl(1 * time.Hour), // مقداردهی اولیه با محدودیت پیش‌فرض 1 ساعت
+
 	}
 
 	m.theme.NormalFont = app.Config.Application.FontNormalTTF
@@ -135,6 +140,15 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 	m.addShortcuts()
 
 	// go m.statsReporter(m.proxyCtx, 10*time.Second)
+
+	loginWindow := NewLoginWindow(m.Window)
+	loginWindow.SetOnComplete(func(isParent bool) {
+		if !isParent {
+			m.DisableParentFeatures()
+		}
+	})
+
+	loginWindow.Show()
 
 	return m
 }
@@ -305,6 +319,15 @@ func (m *MainWindow) initUI() {
 		// container.NewTabItem("Log", logHandler.GetContainer()), // components.NewLogWidget(1000)),
 		// container.NewTabItem("Statistics", getStatsContent()),
 	)
+
+	rulesTab := NewRulesTab(m.Window, m.accessControl)
+	tabs.Append(container.NewTabItem("Access Rules", rulesTab.Container()))
+
+	proc, err := process.NewProcess(int32(os.Getpid()))
+	if err == nil {
+		monitorTab := NewMonitorTab(proc)
+		tabs.Append(container.NewTabItem("Monitor", monitorTab.Container()))
+	}
 
 	m.ipWidget = widget.NewEntry()
 	m.ipWidget.SetText("0.0.0.0")
@@ -573,4 +596,14 @@ func (m *MainWindow) showError(title string, err error) {
 		m.Window.Canvas(),
 	)
 	dialog.Show()
+}
+
+func (m *MainWindow) DisableParentFeatures() {
+	// Disable settings
+	m.actSettings.Disable()
+
+	// Disable add connection
+	m.actAdd.Disable()
+
+	// Any other features you want to disable for child mode
 }
