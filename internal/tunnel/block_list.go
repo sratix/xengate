@@ -1,8 +1,7 @@
-package proxy
+package tunnel
 
 import "sync"
 
-// در بالای فایل‌ها
 type IPBlocklist struct {
 	mu      sync.RWMutex
 	blocked map[string]bool

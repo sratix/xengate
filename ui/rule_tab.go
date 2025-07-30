@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"xengate/internal/proxy"
+	"xengate/internal/tunnel"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -17,14 +17,14 @@ import (
 
 type RulesTab struct {
 	window        fyne.Window
-	accessControl *proxy.AccessControl
+	accessControl *tunnel.AccessControl
 	container     *fyne.Container
 	table         *widget.Table
-	rules         []*proxy.AccessRule
+	rules         []*tunnel.AccessRule
 	autoSave      bool
 }
 
-func NewRulesTab(window fyne.Window, accessControl *proxy.AccessControl) *RulesTab {
+func NewRulesTab(window fyne.Window, accessControl *tunnel.AccessControl) *RulesTab {
 	tab := &RulesTab{
 		window:        window,
 		accessControl: accessControl,
@@ -151,7 +151,7 @@ func (r *RulesTab) initUI() {
 	go r.periodicRefresh()
 }
 
-func (r *RulesTab) showDetailsDialog(rule *proxy.AccessRule) {
+func (r *RulesTab) showDetailsDialog(rule *tunnel.AccessRule) {
 	_, status := r.accessControl.GetRule(rule.ID)
 
 	details := container.NewVBox(
@@ -226,7 +226,7 @@ func (r *RulesTab) showAddDialog() {
 				return
 			}
 
-			rule := &proxy.AccessRule{
+			rule := &tunnel.AccessRule{
 				Title:       titleEntry.Text,
 				IP:          ipEntry.Text,
 				IsMaster:    isMasterCheck.Checked,
@@ -249,7 +249,7 @@ func (r *RulesTab) showAddDialog() {
 	dialog.ShowCustom("Add New Rule", "Add", form, r.window)
 }
 
-func (r *RulesTab) showEditDialog(rule *proxy.AccessRule) {
+func (r *RulesTab) showEditDialog(rule *tunnel.AccessRule) {
 	titleEntry := widget.NewEntry()
 	titleEntry.SetText(rule.Title)
 
@@ -280,7 +280,7 @@ func (r *RulesTab) showEditDialog(rule *proxy.AccessRule) {
 				return
 			}
 
-			updatedRule := &proxy.AccessRule{
+			updatedRule := &tunnel.AccessRule{
 				ID:          rule.ID,
 				Title:       titleEntry.Text,
 				IP:          ipEntry.Text,
@@ -323,7 +323,7 @@ func (r *RulesTab) Container() fyne.CanvasObject {
 	return r.container
 }
 
-func getStatusText(rule *proxy.AccessRule, status *proxy.AccessStatus) string {
+func getStatusText(rule *tunnel.AccessRule, status *tunnel.AccessStatus) string {
 	if rule.IsMaster {
 		return "Master (Unlimited)"
 	}

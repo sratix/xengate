@@ -18,24 +18,22 @@ import (
 )
 
 type HTTPProxy struct {
-	manager   *tunnel.Manager
-	listener  net.Listener
-	wg        sync.WaitGroup
-	mu        sync.RWMutex
-	closed    bool
-	ip        string
-	port      int16
-	mode      string
-	blocklist *IPBlocklist
+	manager  *tunnel.Manager
+	listener net.Listener
+	wg       sync.WaitGroup
+	mu       sync.RWMutex
+	closed   bool
+	ip       string
+	port     int16
+	mode     string
 }
 
 func NewHTTPProxy(mode string, ip string, port int16, manager *tunnel.Manager) *HTTPProxy {
 	return &HTTPProxy{
-		manager:   manager,
-		ip:        ip,
-		port:      port,
-		mode:      mode,
-		blocklist: NewIPBlocklist(),
+		manager: manager,
+		ip:      ip,
+		port:    port,
+		mode:    mode,
 	}
 }
 
@@ -111,22 +109,10 @@ func (p *HTTPProxy) acceptLoop(ctx context.Context) {
 }
 
 func (p *HTTPProxy) handleConnection(ctx context.Context, clientConn net.Conn) {
-	// Get client IP
-	clientIP, _, err := net.SplitHostPort(clientConn.RemoteAddr().String())
-	if err != nil {
+	defer func() {
+		p.wg.Done()
 		clientConn.Close()
-		return
-	}
-
-	// Check if IP is blocked
-	if p.blocklist.IsBlocked(clientIP) {
-		log.Debugf("Blocked connection from %s", clientIP)
-		clientConn.Close()
-		return
-	}
-
-	defer p.wg.Done()
-	defer clientConn.Close()
+	}()
 
 	// Set timeout for initial request
 	clientConn.SetReadDeadline(time.Now().Add(10 * time.Second))
@@ -292,10 +278,10 @@ func (p *HTTPProxy) Stop() error {
 	return nil
 }
 
-func (p *HTTPProxy) BlockIP(ip string) {
-	p.blocklist.Add(ip)
-}
+// func (p *HTTPProxy) BlockIP(ip string) {
+// 	p.blocklist.Add(ip)
+// }
 
-func (p *HTTPProxy) UnblockIP(ip string) {
-	p.blocklist.Remove(ip)
-}
+// func (p *HTTPProxy) UnblockIP(ip string) {
+// 	p.blocklist.Remove(ip)
+// }

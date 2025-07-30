@@ -9,20 +9,23 @@ import (
 
 	"xengate/internal/models"
 
+	"fyne.io/fyne/v2"
 	log "github.com/sirupsen/logrus"
 )
 
 type Manager struct {
-	pools      map[string]*ConnectionPool
-	mu         sync.RWMutex
-	roundRobin uint32
-	// Add waitgroup to track active operations
-	wg sync.WaitGroup
+	pools         map[string]*ConnectionPool
+	mu            sync.RWMutex
+	wg            sync.WaitGroup
+	blocklist     *IPBlocklist
+	accessControl *AccessControl
 }
 
-func NewManager() *Manager {
+func NewManager(app fyne.App) *Manager {
 	return &Manager{
-		pools: make(map[string]*ConnectionPool),
+		pools:         make(map[string]*ConnectionPool),
+		blocklist:     NewIPBlocklist(),
+		accessControl: NewAccessControl(app, 1*time.Hour),
 	}
 }
 
@@ -116,8 +119,34 @@ func (m *Manager) StopAll() {
 
 func (m *Manager) Forward(localConn net.Conn, targetAddr string) error {
 	logger := log.WithFields(log.Fields{
-		"target": targetAddr,
+		"localAddr":  localConn.LocalAddr().String(),
+		"targetAddr": targetAddr,
 	})
+	logger.Debug("Forwarding connection")
+
+	// چک کردن بلک لیست
+	if m.blocklist.IsBlocked(localConn.LocalAddr().String()) {
+		log.Debugf("Blocked connection from %s", localConn.LocalAddr().String())
+		logger.Warn("Connection blocked by IP blocklist")
+		localConn.Close()
+		return fmt.Errorf("connection blocked by IP blocklist")
+	}
+
+	// چک کردن و شروع سشن
+	if !m.accessControl.StartSession(localConn.LocalAddr().String()) {
+		log.Debugf("Access denied for %s (time limit exceeded)", localConn.LocalAddr().String())
+		logger.Warn("Access denied due to time limit exceeded")
+		localConn.Close()
+		m.accessControl.EndSession(localConn.LocalAddr().String())
+		// Notify the user via Fyne
+		// fyne.CurrentApp().SendNotification(&fyne.Notification{
+		// 	Title:   "Access Denied",
+		// 	Content: fmt.Sprintf("Access denied for %s due to time limit exceeded", localConn.LocalAddr().String()),
+		// })
+		return nil
+	}
+
+	defer m.accessControl.EndSession(localConn.LocalAddr().String())
 
 	m.mu.RLock()
 	if len(m.pools) == 0 {
@@ -201,4 +230,12 @@ func (m *Manager) HasPool(serverName string) bool {
 	defer m.mu.RUnlock()
 	_, exists := m.pools[serverName]
 	return exists
+}
+
+func (m *Manager) BlockIP(ip string) {
+	m.blocklist.Add(ip)
+}
+
+func (m *Manager) UnblockIP(ip string) {
+	m.blocklist.Remove(ip)
 }

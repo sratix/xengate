@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type RuleConfig struct {
+type Rule struct {
 	ID          string        `json:"id"`
 	Title       string        `json:"title"`
 	IP          string        `json:"ip"`

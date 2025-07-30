@@ -27,24 +27,20 @@ const (
 )
 
 type Socks5Server struct {
-	manager       *tunnel.Manager
-	listener      net.Listener
-	wg            sync.WaitGroup
-	mu            sync.RWMutex
-	closed        bool
-	ip            string
-	port          int16
-	blocklist     *IPBlocklist
-	accessControl *AccessControl
+	manager  *tunnel.Manager
+	listener net.Listener
+	wg       sync.WaitGroup
+	mu       sync.RWMutex
+	closed   bool
+	ip       string
+	port     int16
 }
 
 func NewSocks5Server(ip string, port int16, manager *tunnel.Manager) (*Socks5Server, error) {
 	return &Socks5Server{
-		manager:       manager,
-		ip:            ip,
-		port:          port,
-		blocklist:     NewIPBlocklist(),
-		accessControl: NewAccessControl(1 * time.Hour),
+		manager: manager,
+		ip:      ip,
+		port:    port,
 	}, nil
 }
 
@@ -100,28 +96,7 @@ func (s *Socks5Server) acceptLoop(ctx context.Context) {
 }
 
 func (s *Socks5Server) handleConnection(ctx context.Context, conn net.Conn) {
-	clientIP, _, err := net.SplitHostPort(conn.RemoteAddr().String())
-	if err != nil {
-		conn.Close()
-		return
-	}
-
-	// چک کردن بلک لیست
-	if s.blocklist.IsBlocked(clientIP) {
-		log.Debugf("Blocked connection from %s", clientIP)
-		conn.Close()
-		return
-	}
-
-	// چک کردن و شروع سشن
-	if !s.accessControl.StartSession(clientIP) {
-		log.Debugf("Access denied for %s (time limit exceeded)", clientIP)
-		conn.Close()
-		return
-	}
-
 	defer func() {
-		s.accessControl.EndSession(clientIP)
 		s.wg.Done()
 		conn.Close()
 	}()
@@ -284,10 +259,10 @@ func (s *Socks5Server) Stop() error {
 	return nil
 }
 
-func (s *Socks5Server) BlockIP(ip string) {
-	s.blocklist.Add(ip)
-}
+// func (s *Socks5Server) BlockIP(ip string) {
+// 	s.blocklist.Add(ip)
+// }
 
-func (s *Socks5Server) UnblockIP(ip string) {
-	s.blocklist.Remove(ip)
-}
+// func (s *Socks5Server) UnblockIP(ip string) {
+// 	s.blocklist.Remove(ip)
+// }

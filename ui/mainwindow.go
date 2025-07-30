@@ -91,7 +91,7 @@ type MainWindow struct {
 	timerPanel *components.TimerPanel
 
 	ipWidget      *widget.Entry
-	accessControl *proxy.AccessControl
+	accessControl *tunnel.AccessControl
 }
 
 func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string, app *backend.App) MainWindow {
@@ -109,8 +109,7 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 			MTU:        1500,
 			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 		},
-		accessControl: proxy.NewAccessControl(1 * time.Hour), // مقداردهی اولیه با محدودیت پیش‌فرض 1 ساعت
-
+		accessControl: tunnel.NewAccessControl(fyneApp, 1*time.Hour),
 	}
 
 	m.theme.NormalFont = app.Config.Application.FontNormalTTF
@@ -135,7 +134,7 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 		}
 	})
 
-	m.Man = tunnel.NewManager()
+	m.Man = tunnel.NewManager(fyneApp)
 
 	m.addShortcuts()
 
