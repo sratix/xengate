@@ -140,6 +140,8 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 
 	// go m.statsReporter(m.proxyCtx, 10*time.Second)
 
+	m.AutoService(true)
+
 	loginWindow := NewLoginWindow(m.Window)
 	loginWindow.SetOnComplete(func(isParent bool) {
 		if !isParent {
@@ -343,6 +345,24 @@ func (m *MainWindow) initUI() {
 	)
 
 	m.Window.SetContent(container.NewBorder(m.toolBar, container.NewBorder(nil, nil, container.NewHBox(container.NewPadded(container.NewCenter(details))), container.NewPadded(m.timerPanel), nil), nil, nil, container.NewPadded(tabs)))
+}
+
+func (m *MainWindow) AutoService(enable bool) {
+	if enable {
+		m.socksServer, _ = proxy.NewProxy("socks5", strings.TrimSpace(m.ipWidget.Text), 1080, m.Man)
+		m.httpServer, _ = proxy.NewProxy("http", strings.TrimSpace(m.ipWidget.Text), 1090, m.Man)
+
+		m.socksServer.Start(context.Background())
+		m.httpServer.Start(context.Background())
+
+		for _, c := range m.connectionList.GetConnections() {
+			m.Man.Start(context.Background(), c)
+		}
+	} else {
+		m.socksServer.Stop()
+		m.httpServer.Stop()
+		m.Man.StopAll()
+	}
 }
 
 func (m *MainWindow) DesiredSize() fyne.Size {
