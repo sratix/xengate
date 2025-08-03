@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,11 +22,16 @@ type Manager struct {
 	accessControl *AccessControl
 }
 
-func NewManager(app fyne.App) *Manager {
+type BlockedIPInfo struct {
+	IP        string    `json:"ip"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+func NewManager(app fyne.App, accessControl *AccessControl) *Manager {
 	return &Manager{
 		pools:         make(map[string]*ConnectionPool),
 		blocklist:     NewIPBlocklist(),
-		accessControl: NewAccessControl(app, 1*time.Hour),
+		accessControl: accessControl,
 	}
 }
 
@@ -120,33 +126,34 @@ func (m *Manager) StopAll() {
 func (m *Manager) Forward(localConn net.Conn, targetAddr string) error {
 	logger := log.WithFields(log.Fields{
 		"localAddr":  localConn.LocalAddr().String(),
+		"remoteAddr": localConn.RemoteAddr().String(),
 		"targetAddr": targetAddr,
 	})
 	logger.Debug("Forwarding connection")
 
-	// چک کردن بلک لیست
-	if m.blocklist.IsBlocked(localConn.LocalAddr().String()) {
-		log.Debugf("Blocked connection from %s", localConn.LocalAddr().String())
-		logger.Warn("Connection blocked by IP blocklist")
+	// استخراج IP کلاینت از RemoteAddr
+	clientIP := strings.Split(localConn.RemoteAddr().String(), ":")[0]
+
+	// چک کردن بلک لیست با IP کلاینت
+	if m.IsIPBlocked(clientIP) {
+		log.WithFields(log.Fields{
+			"clientIP": clientIP,
+		}).Warn("Connection blocked by IP blocklist")
 		localConn.Close()
-		return fmt.Errorf("connection blocked by IP blocklist")
+		return fmt.Errorf("connection blocked by IP blocklist: %s", clientIP)
 	}
 
-	// چک کردن و شروع سشن
-	if !m.accessControl.StartSession(localConn.LocalAddr().String()) {
-		log.Debugf("Access denied for %s (time limit exceeded)", localConn.LocalAddr().String())
-		logger.Warn("Access denied due to time limit exceeded")
+	// چک کردن و شروع سشن با IP کلاینت
+	if !m.accessControl.StartSession(clientIP) {
+		log.WithFields(log.Fields{
+			"clientIP": clientIP,
+		}).Debug("Access denied (time limit exceeded)")
 		localConn.Close()
-		m.accessControl.EndSession(localConn.LocalAddr().String())
-		// Notify the user via Fyne
-		// fyne.CurrentApp().SendNotification(&fyne.Notification{
-		// 	Title:   "Access Denied",
-		// 	Content: fmt.Sprintf("Access denied for %s due to time limit exceeded", localConn.LocalAddr().String()),
-		// })
-		return nil
+		m.accessControl.EndSession(clientIP)
+		return fmt.Errorf("access denied for %s (time limit exceeded)", clientIP)
 	}
 
-	defer m.accessControl.EndSession(localConn.LocalAddr().String())
+	defer m.accessControl.EndSession(clientIP)
 
 	m.mu.RLock()
 	if len(m.pools) == 0 {
@@ -232,10 +239,33 @@ func (m *Manager) HasPool(serverName string) bool {
 	return exists
 }
 
+func (m *Manager) GetBlockedIPs() []BlockedIPInfo {
+	blocked := m.blocklist.GetAll()
+	items := make([]BlockedIPInfo, 0, len(blocked))
+
+	for ip, timestamp := range blocked {
+		items = append(items, BlockedIPInfo{
+			IP:        ip,
+			Timestamp: timestamp,
+		})
+	}
+	return items
+}
+
 func (m *Manager) BlockIP(ip string) {
 	m.blocklist.Add(ip)
+	log.WithFields(log.Fields{
+		"ip": ip,
+	}).Info("IP address blocked")
 }
 
 func (m *Manager) UnblockIP(ip string) {
 	m.blocklist.Remove(ip)
+	log.WithFields(log.Fields{
+		"ip": ip,
+	}).Info("IP address unblocked")
+}
+
+func (m *Manager) IsIPBlocked(ip string) bool {
+	return m.blocklist.IsBlocked(ip)
 }

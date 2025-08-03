@@ -250,58 +250,58 @@ func (r *RulesTab) showAddDialog() {
 }
 
 func (r *RulesTab) showEditDialog(rule *tunnel.AccessRule) {
-	titleEntry := widget.NewEntry()
-	titleEntry.SetText(rule.Title)
+		titleEntry := widget.NewEntry()
+		titleEntry.SetText(rule.Title)
 
-	ipEntry := widget.NewEntry()
-	ipEntry.SetText(rule.IP)
+		ipEntry := widget.NewEntry()
+		ipEntry.SetText(rule.IP)
 
-	isMasterCheck := widget.NewCheck("Master IP", nil)
-	isMasterCheck.Checked = rule.IsMaster
+		isMasterCheck := widget.NewCheck("Master IP", nil)
+		isMasterCheck.Checked = rule.IsMaster
 
-	limitEntry := widget.NewEntry()
-	limitEntry.SetText(rule.DailyLimit.String())
+		limitEntry := widget.NewEntry()
+		limitEntry.SetText(rule.DailyLimit.String())
 
-	descEntry := widget.NewMultiLineEntry()
-	descEntry.SetText(rule.Description)
+		descEntry := widget.NewMultiLineEntry()
+		descEntry.SetText(rule.Description)
 
-	form := &widget.Form{
-		Items: []*widget.FormItem{
-			{Text: "Title", Widget: titleEntry},
-			{Text: "IP Address", Widget: ipEntry},
-			{Text: "Is Master", Widget: isMasterCheck},
-			{Text: "Daily Limit", Widget: limitEntry},
-			{Text: "Description", Widget: descEntry},
-		},
-		OnSubmit: func() {
-			limit, err := time.ParseDuration(limitEntry.Text)
-			if err != nil {
-				dialog.ShowError(err, r.window)
-				return
-			}
+		form := &widget.Form{
+			Items: []*widget.FormItem{
+				{Text: "Title", Widget: titleEntry},
+				{Text: "IP Address", Widget: ipEntry},
+				{Text: "Is Master", Widget: isMasterCheck},
+				{Text: "Daily Limit", Widget: limitEntry},
+				{Text: "Description", Widget: descEntry},
+			},
+			OnSubmit: func() {
+				limit, err := time.ParseDuration(limitEntry.Text)
+				if err != nil {
+					dialog.ShowError(err, r.window)
+					return
+				}
 
-			updatedRule := &tunnel.AccessRule{
-				ID:          rule.ID,
-				Title:       titleEntry.Text,
-				IP:          ipEntry.Text,
-				IsMaster:    isMasterCheck.Checked,
-				DailyLimit:  limit,
-				Description: descEntry.Text,
-			}
+				updatedRule := &tunnel.AccessRule{
+					ID:          rule.ID,
+					Title:       titleEntry.Text,
+					IP:          ipEntry.Text,
+					IsMaster:    isMasterCheck.Checked,
+					DailyLimit:  limit,
+					Description: descEntry.Text,
+				}
 
-			if err := r.accessControl.UpdateRule(updatedRule); err != nil {
-				dialog.ShowError(err, r.window)
-				return
-			}
+				if err := r.accessControl.UpdateRule(updatedRule); err != nil {
+					dialog.ShowError(err, r.window)
+					return
+				}
 
-			r.refreshTable()
-			if r.autoSave {
-				r.accessControl.SaveRules()
-			}
-		},
-	}
+				r.refreshTable()
+				if r.autoSave {
+					r.accessControl.SaveRules()
+				}
+			},
+		}
 
-	dialog.ShowCustom("Edit Rule", "Save", form, r.window)
+		dialog.ShowCustom("Edit Rule", "Save", form, r.window)
 }
 
 func (r *RulesTab) refreshTable() {

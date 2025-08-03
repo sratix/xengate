@@ -120,6 +120,8 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 		m.SetupSystemTrayMenu(displayAppName, fyneApp)
 	}
 
+	m.Man = tunnel.NewManager(fyneApp, m.accessControl)
+
 	m.initUI()
 
 	m.setInitialSize()
@@ -133,8 +135,6 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 			m.Window.Close()
 		}
 	})
-
-	m.Man = tunnel.NewManager(fyneApp)
 
 	m.addShortcuts()
 
@@ -318,6 +318,10 @@ func (m *MainWindow) initUI() {
 		// container.NewTabItem("Log", logHandler.GetContainer()), // components.NewLogWidget(1000)),
 		// container.NewTabItem("Statistics", getStatsContent()),
 	)
+
+	// در بخش تعریف tabs در mainwindow.go
+	blockListTab := NewBlockListTab(m.Window, m.Man)
+	tabs.Append(container.NewTabItem("Block List", blockListTab.Container()))
 
 	rulesTab := NewRulesTab(m.Window, m.accessControl)
 	tabs.Append(container.NewTabItem("Access Rules", rulesTab.Container()))

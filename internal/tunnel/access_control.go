@@ -3,6 +3,7 @@ package tunnel
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"sync"
 	"time"
 
@@ -269,6 +270,10 @@ func (ac *AccessControl) EndSession(ip string) {
 
 func (ac *AccessControl) getRuleByIPLocked(ip string) (*AccessRule, *AccessStatus) {
 	if ruleID, ok := ac.rulesByIP[ip]; ok {
+		fmt.Printf("******** Checking rule for IP: %+v\n", ac.rulesByIP)
+		fmt.Printf("******** Rule ID: %+v\n", ruleID)
+		fmt.Printf("******** Rule: %+v\n", ac.rules[ruleID])
+		fmt.Printf("******** Status: %+v\n", ac.status[ruleID])
 		return ac.rules[ruleID], ac.status[ruleID]
 	}
 	return nil, nil
