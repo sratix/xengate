@@ -35,7 +35,7 @@ func NewConnectionList(app fyne.App, window fyne.Window) *ConnectionList {
 	}
 	list.ExtendBaseWidget(list)
 	list.storage, _ = storage.NewAppStorage(app)
-	list.configManager = &DefaultConfigManager{
+	list.configManager = &common.DefaultConfigManager{
 		Storage: list.storage,
 	}
 	// Load connections from the config manager

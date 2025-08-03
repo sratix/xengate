@@ -59,7 +59,7 @@ func NewAccessControl(app fyne.App, defaultLimit time.Duration) *AccessControl {
 	}
 
 	ac.storage, _ = storage.NewAppStorage(app)
-	ac.configManager = &DefaultConfigManager{
+	ac.configManager = &common.DefaultConfigManager{
 		Storage: ac.storage,
 	}
 
