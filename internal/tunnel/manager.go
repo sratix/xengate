@@ -22,11 +22,6 @@ type Manager struct {
 	accessControl *AccessControl
 }
 
-type BlockedIPInfo struct {
-	IP        string    `json:"ip"`
-	Timestamp time.Time `json:"timestamp"`
-}
-
 func NewManager(app fyne.App, accessControl *AccessControl) *Manager {
 	return &Manager{
 		pools:         make(map[string]*ConnectionPool),
@@ -239,12 +234,12 @@ func (m *Manager) HasPool(serverName string) bool {
 	return exists
 }
 
-func (m *Manager) GetBlockedIPs() []BlockedIPInfo {
+func (m *Manager) GetBlockedIPs() []models.BlockedIPInfo {
 	blocked := m.blocklist.GetAll()
-	items := make([]BlockedIPInfo, 0, len(blocked))
+	items := make([]models.BlockedIPInfo, 0, len(blocked))
 
 	for ip, timestamp := range blocked {
-		items = append(items, BlockedIPInfo{
+		items = append(items, models.BlockedIPInfo{
 			IP:        ip,
 			Timestamp: timestamp,
 		})

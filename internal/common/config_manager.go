@@ -20,12 +20,20 @@ func (m *DefaultConfigManager) LoadConfig() *Config {
 	path := filepath.Join(m.Storage.ConfigPath(), configFile)
 	data, err := m.Storage.ReadFile(path)
 	if err != nil {
-		return &Config{Connections: make([]*models.Connection, 0), Rules: make([]*models.Rule, 0)}
+		return &Config{
+			Connections: make([]*models.Connection, 0),
+			Rules:       make([]*models.Rule, 0),
+			BlockedList: make([]*models.BlockedIPInfo, 0),
+		}
 	}
 
 	var config Config
 	if err := json.Unmarshal(data, &config); err != nil {
-		return &Config{Connections: make([]*models.Connection, 0), Rules: make([]*models.Rule, 0)}
+		return &Config{
+			Connections: make([]*models.Connection, 0),
+			Rules:       make([]*models.Rule, 0),
+			BlockedList: make([]*models.BlockedIPInfo, 0),
+		}
 	}
 
 	return &config

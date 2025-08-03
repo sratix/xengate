@@ -5,8 +5,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
+	"xengate/internal/common"
+	"xengate/internal/models"
+	"xengate/internal/storage"
 	"xengate/internal/tunnel"
 
 	"fyne.io/fyne/v2"
@@ -17,33 +19,104 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type BlockedIP struct {
-	IP        string
-	Timestamp time.Time
-}
-
 type BlockListTab struct {
-	window    fyne.Window
-	manager   *tunnel.Manager
-	container *fyne.Container
-	table     *widget.Table
-	items     []BlockedIP
+	window        fyne.Window
+	manager       *tunnel.Manager
+	container     *fyne.Container
+	table         *widget.Table
+	items         []models.BlockedIPInfo
+	configManager common.ConfigManager
+	storage       *storage.AppStorage
 }
 
 func NewBlockListTab(window fyne.Window, manager *tunnel.Manager) *BlockListTab {
+	storage, err := storage.NewAppStorage(fyne.CurrentApp())
+	if err != nil {
+		log.WithError(err).Error("Failed to initialize storage")
+		return nil
+	}
+
 	tab := &BlockListTab{
 		window:  window,
 		manager: manager,
-		items:   make([]BlockedIP, 0),
+		items:   make([]models.BlockedIPInfo, 0),
+		storage: storage,
+		configManager: &common.DefaultConfigManager{
+			Storage: storage,
+		},
 	}
+
 	tab.initUI()
+	tab.loadBlockedIPsFromConfig()
+
 	return tab
+}
+
+func (b *BlockListTab) loadBlockedIPsFromConfig() {
+	config := b.configManager.LoadConfig()
+	if config == nil || config.BlockedList == nil {
+		return
+	}
+
+	// پاک کردن لیست فعلی
+	for _, item := range b.items {
+		b.manager.UnblockIP(item.IP)
+	}
+
+	b.items = make([]models.BlockedIPInfo, 0)
+
+	// اضافه کردن IP های موجود در فایل کانفیگ
+	for _, blockedIP := range config.BlockedList {
+		if blockedIP != nil && blockedIP.IP != "" {
+			b.manager.BlockIP(blockedIP.IP)
+			b.items = append(b.items, models.BlockedIPInfo{
+				IP:        blockedIP.IP,
+				Timestamp: blockedIP.Timestamp,
+			})
+		}
+	}
+
+	// مرتب سازی بر اساس زمان
+	b.sortItems()
+
+	if b.table != nil {
+		b.table.Refresh()
+	}
+}
+
+func (b *BlockListTab) saveToConfig() {
+	currentBlocked := b.manager.GetBlockedIPs()
+	blockedList := make([]*models.BlockedIPInfo, len(currentBlocked))
+
+	for i, item := range currentBlocked {
+		blockedList[i] = &models.BlockedIPInfo{
+			IP:        item.IP,
+			Timestamp: item.Timestamp,
+		}
+	}
+
+	config := b.configManager.LoadConfig()
+	if config == nil {
+		config = &common.Config{}
+	}
+
+	config.BlockedList = blockedList
+
+	if err := b.configManager.SaveConfig(config); err != nil {
+		log.WithError(err).Error("Failed to save blocked IPs to config")
+		dialog.ShowError(fmt.Errorf("Failed to save configuration: %v", err), b.window)
+	}
+}
+
+func (b *BlockListTab) sortItems() {
+	sort.Slice(b.items, func(i, j int) bool {
+		return b.items[i].Timestamp.After(b.items[j].Timestamp)
+	})
 }
 
 func (b *BlockListTab) initUI() {
 	var selectedCell widget.TableCellID
 
-	// Create table
 	b.table = widget.NewTable(
 		func() (int, int) {
 			return len(b.items) + 1, 2 // +1 for header row
@@ -54,7 +127,6 @@ func (b *BlockListTab) initUI() {
 		func(id widget.TableCellID, cell fyne.CanvasObject) {
 			label := cell.(*widget.Label)
 
-			// Handle header row
 			if id.Row == 0 {
 				headers := []string{"IP Address", "Blocked Since"}
 				if id.Col < len(headers) {
@@ -64,7 +136,6 @@ func (b *BlockListTab) initUI() {
 				return
 			}
 
-			// Adjust row index for data (subtract header row)
 			dataRow := id.Row - 1
 			if dataRow < len(b.items) {
 				item := b.items[dataRow]
@@ -78,64 +149,30 @@ func (b *BlockListTab) initUI() {
 		},
 	)
 
-	// Set column widths
-	b.table.SetColumnWidth(0, 150) // IP Address
-	b.table.SetColumnWidth(1, 180) // Timestamp
+	b.table.SetColumnWidth(0, 150)
+	b.table.SetColumnWidth(1, 180)
 
-	// Add button
 	addButton := widget.NewButtonWithIcon("Add IP", theme.ContentAddIcon(), func() {
 		b.showAddDialog()
 	})
 
-	// Remove button
 	removeButton := widget.NewButtonWithIcon("Remove IP", theme.DeleteIcon(), func() {
 		if len(b.items) > 0 && selectedCell.Row > 0 && selectedCell.Row <= len(b.items) {
-			ip := b.items[selectedCell.Row-1].IP
-			dialog.ShowConfirm("Remove IP",
-				"Are you sure you want to unblock this IP?",
-				func(ok bool) {
-					if ok {
-						b.manager.UnblockIP(ip)
-						b.refreshList()
-					}
-				},
-				b.window)
+			b.showRemoveDialog(b.items[selectedCell.Row-1].IP)
 		}
 	})
 
-	// Clear all button
 	clearButton := widget.NewButtonWithIcon("Clear All", theme.DeleteIcon(), func() {
 		if len(b.items) > 0 {
-			dialog.ShowConfirm("Clear All",
-				"Are you sure you want to unblock all IPs?",
-				func(ok bool) {
-					if ok {
-						for _, item := range b.items {
-							b.manager.UnblockIP(item.IP)
-						}
-						b.refreshList()
-					}
-				},
-				b.window)
+			b.showClearAllDialog()
 		}
 	})
 
-	// Selection handler
 	b.table.OnSelected = func(id widget.TableCellID) {
 		selectedCell = id
 		if id.Row > 0 && id.Row <= len(b.items) {
-			ip := b.items[id.Row-1].IP
-			dialog.ShowConfirm("Remove IP",
-				fmt.Sprintf("Do you want to unblock %s?", ip),
-				func(ok bool) {
-					if ok {
-						b.manager.UnblockIP(ip)
-						b.refreshList()
-					}
-					// Deselect after handling
-					b.table.UnselectAll()
-				},
-				b.window)
+			b.showRemoveDialog(b.items[id.Row-1].IP)
+			b.table.UnselectAll()
 		}
 	}
 
@@ -145,13 +182,10 @@ func (b *BlockListTab) initUI() {
 		clearButton,
 	)
 
-	// Layout
 	b.container = container.NewBorder(
 		toolbar, nil, nil, nil,
 		container.NewPadded(b.table),
 	)
-
-	b.refreshList()
 }
 
 func (b *BlockListTab) showAddDialog() {
@@ -163,22 +197,27 @@ func (b *BlockListTab) showAddDialog() {
 	input := widget.NewEntry()
 	input.SetPlaceHolder("Enter IP address")
 
-	// اضافه کردن validation برای IP
 	validate := func(s string) error {
-		if s == "" {
+		if s = strings.TrimSpace(s); s == "" {
 			return fmt.Errorf("IP address cannot be empty")
 		}
-		// اختیاری: اضافه کردن validation برای فرمت IP
+
 		parts := strings.Split(s, ".")
 		if len(parts) != 4 {
 			return fmt.Errorf("Invalid IP format")
 		}
+
 		for _, part := range parts {
 			num, err := strconv.Atoi(part)
 			if err != nil || num < 0 || num > 255 {
 				return fmt.Errorf("Invalid IP format")
 			}
 		}
+
+		if b.manager.IsIPBlocked(s) {
+			return fmt.Errorf("This IP is already blocked")
+		}
+
 		return nil
 	}
 
@@ -192,24 +231,52 @@ func (b *BlockListTab) showAddDialog() {
 				return
 			}
 
-			// Validate IP
 			if err := validate(input.Text); err != nil {
 				dialog.ShowError(err, b.window)
 				return
 			}
 
-			// Block IP
 			b.manager.BlockIP(input.Text)
-
-			// Refresh list
 			b.refreshList()
 
-			// Optional: Show success message
 			dialog.ShowInformation("Success",
 				fmt.Sprintf("IP %s has been blocked", input.Text),
 				b.window)
 		},
 		b.window)
+}
+
+func (b *BlockListTab) showRemoveDialog(ip string) {
+	dialog.ShowConfirm("Remove IP",
+		fmt.Sprintf("Do you want to unblock %s?", ip),
+		func(ok bool) {
+			if ok {
+				b.manager.UnblockIP(ip)
+				b.refreshList()
+			}
+		},
+		b.window)
+}
+
+func (b *BlockListTab) showClearAllDialog() {
+	dialog.ShowConfirm("Clear All",
+		"Are you sure you want to unblock all IPs?",
+		func(ok bool) {
+			if ok {
+				b.clearAllBlockedIPs()
+			}
+		},
+		b.window)
+}
+
+func (b *BlockListTab) clearAllBlockedIPs() {
+	for _, item := range b.items {
+		b.manager.UnblockIP(item.IP)
+	}
+
+	b.items = make([]models.BlockedIPInfo, 0)
+	b.table.Refresh()
+	b.saveToConfig()
 }
 
 func (b *BlockListTab) refreshList() {
@@ -219,20 +286,18 @@ func (b *BlockListTab) refreshList() {
 	}
 
 	blockedIPs := b.manager.GetBlockedIPs()
-	b.items = make([]BlockedIP, len(blockedIPs))
+	b.items = make([]models.BlockedIPInfo, len(blockedIPs))
 
 	for i, item := range blockedIPs {
-		b.items[i] = BlockedIP{
+		b.items[i] = models.BlockedIPInfo{
 			IP:        item.IP,
 			Timestamp: item.Timestamp,
 		}
 	}
 
-	sort.Slice(b.items, func(i, j int) bool {
-		return b.items[i].Timestamp.After(b.items[j].Timestamp)
-	})
-
+	b.sortItems()
 	b.table.Refresh()
+	b.saveToConfig()
 }
 
 func (b *BlockListTab) Container() fyne.CanvasObject {
