@@ -280,7 +280,7 @@ func (s *SettingsDialog) createAppearanceTab(window fyne.Window) *container.TabI
 }
 
 func (s *SettingsDialog) createAdvancedTab() *container.TabItem {
-	multi := widget.NewCheckWithData(lang.L("Allow multiple app instances"), binding.BindBool(&s.config.Application.AllowMultiInstance))
+	multi := widget.NewCheckWithData(lang.L("Auto Service Mode"), binding.BindBool(&s.config.Application.AutoServiceMode))
 	return container.NewTabItem(lang.L("Advanced"), container.NewVBox(
 		multi,
 	))

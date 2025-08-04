@@ -16,7 +16,7 @@ type AppConfig struct {
 	CloseToSystemTray           bool
 	StartupPage                 string
 	SettingsTab                 string
-	AllowMultiInstance          bool
+	AutoServiceMode             bool
 	MaxImageCacheSizeMB         int
 	ClearCacheOnExit            bool
 	DefaultPlaylistID           string
@@ -62,7 +62,7 @@ func DefaultConfig(appVersionTag string) *Config {
 			ClearCacheOnExit:    false,
 			StartupPage:         "Albums",
 			SettingsTab:         "General",
-			AllowMultiInstance:  false,
+			AutoServiceMode:     false,
 			UIScaleSize:         "Normal",
 			Language:            "auto",
 		},
