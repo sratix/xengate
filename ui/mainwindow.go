@@ -109,7 +109,8 @@ func NewMainWindow(fyneApp fyne.App, appName, displayAppName, appVersion string,
 			MTU:        1500,
 			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 		},
-		accessControl: tunnel.NewAccessControl(fyneApp, 1*time.Hour),
+		// accessControl: tunnel.NewAccessControl(fyneApp, 1*time.Hour),
+		accessControl: tunnel.NewAccessControl(1 * time.Hour),
 	}
 
 	m.theme.NormalFont = app.Config.Application.FontNormalTTF

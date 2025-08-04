@@ -22,7 +22,7 @@ func (m *DefaultConfigManager) LoadConfig() *Config {
 	if err != nil {
 		return &Config{
 			Connections: make([]*models.Connection, 0),
-			Rules:       make([]*models.Rule, 0),
+			AccessRules: make([]*models.AccessRule, 0),
 			BlockedList: make([]*models.BlockedIPInfo, 0),
 		}
 	}
@@ -31,7 +31,7 @@ func (m *DefaultConfigManager) LoadConfig() *Config {
 	if err := json.Unmarshal(data, &config); err != nil {
 		return &Config{
 			Connections: make([]*models.Connection, 0),
-			Rules:       make([]*models.Rule, 0),
+			AccessRules: make([]*models.AccessRule, 0),
 			BlockedList: make([]*models.BlockedIPInfo, 0),
 		}
 	}

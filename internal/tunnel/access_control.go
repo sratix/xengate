@@ -7,23 +7,19 @@ import (
 	"sync"
 	"time"
 
-	"xengate/internal/common"
 	"xengate/internal/models"
-	"xengate/internal/storage"
-
-	"fyne.io/fyne/v2"
 )
 
-type AccessRule struct {
-	ID          string
-	Title       string
-	IP          string
-	IsMaster    bool
-	DailyLimit  time.Duration
-	Description string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
+// type AccessRule struct {
+// 	ID          string
+// 	Title       string
+// 	IP          string
+// 	IsMaster    bool
+// 	DailyLimit  time.Duration
+// 	Description string
+// 	CreatedAt   time.Time
+// 	UpdatedAt   time.Time
+// }
 
 type AccessStatus struct {
 	RuleID      string
@@ -35,13 +31,13 @@ type AccessStatus struct {
 }
 
 type AccessControl struct {
-	mu            sync.RWMutex
-	rules         map[string]*AccessRule   // key: rule ID
-	rulesByIP     map[string]string        // key: IP, value: rule ID
-	status        map[string]*AccessStatus // key: rule ID
-	defaultLimit  time.Duration
-	configManager common.ConfigManager
-	storage       *storage.AppStorage
+	mu           sync.RWMutex
+	rules        map[string]*models.AccessRule // key: rule ID
+	rulesByIP    map[string]string             // key: IP, value: rule ID
+	status       map[string]*AccessStatus      // key: rule ID
+	defaultLimit time.Duration
+	// configManager common.ConfigManager
+	// storage       *storage.AppStorage
 }
 
 func generateUUID() string {
@@ -50,45 +46,46 @@ func generateUUID() string {
 	return hex.EncodeToString(b)
 }
 
-func NewAccessControl(app fyne.App, defaultLimit time.Duration) *AccessControl {
+// func NewAccessControl(app fyne.App, defaultLimit time.Duration) *AccessControl {
+func NewAccessControl(defaultLimit time.Duration) *AccessControl {
 	ac := &AccessControl{
-		rules:        make(map[string]*AccessRule),
+		rules:        make(map[string]*models.AccessRule),
 		rulesByIP:    make(map[string]string),
 		status:       make(map[string]*AccessStatus),
 		defaultLimit: defaultLimit,
 	}
 
-	ac.storage, _ = storage.NewAppStorage(app)
-	ac.configManager = &common.DefaultConfigManager{
-		Storage: ac.storage,
-	}
+	// ac.storage, _ = storage.NewAppStorage(app)
+	// ac.configManager = &common.DefaultConfigManager{
+	// 	Storage: ac.storage,
+	// }
 
-	rules := ac.configManager.LoadConfig().Rules
-	for _, rule := range rules {
-		duration, err := time.ParseDuration(rule.DailyLimit)
-		if err != nil {
-			duration = 1 * time.Hour
-		}
-		ac.rules[rule.ID] = &AccessRule{
-			ID:          rule.ID,
-			Title:       rule.Title,
-			IP:          rule.IP,
-			IsMaster:    rule.IsMaster,
-			DailyLimit:  duration,
-			Description: rule.Description,
-			CreatedAt:   rule.CreatedAt,
-			UpdatedAt:   rule.UpdatedAt,
-		}
-		ac.rulesByIP[rule.IP] = rule.ID
+	// rules := ac.configManager.LoadConfig().Rules
+	// for _, rule := range rules {
+	// 	duration, err := time.ParseDuration(rule.DailyLimit)
+	// 	if err != nil {
+	// 		duration = 1 * time.Hour
+	// 	}
+	// 	ac.rules[rule.ID] = &AccessRule{
+	// 		ID:          rule.ID,
+	// 		Title:       rule.Title,
+	// 		IP:          rule.IP,
+	// 		IsMaster:    rule.IsMaster,
+	// 		DailyLimit:  duration,
+	// 		Description: rule.Description,
+	// 		CreatedAt:   rule.CreatedAt,
+	// 		UpdatedAt:   rule.UpdatedAt,
+	// 	}
+	// 	ac.rulesByIP[rule.IP] = rule.ID
 
-		ac.status[rule.ID] = &AccessStatus{
-			RuleID:     rule.ID,
-			UsedTime:   rule.UsedTime,
-			IsBlocked:  rule.IsBlocked,
-			LastAccess: rule.LastAccess,
-			ResetTime:  time.Now(),
-		}
-	}
+	// 	ac.status[rule.ID] = &AccessStatus{
+	// 		RuleID:     rule.ID,
+	// 		UsedTime:   rule.UsedTime,
+	// 		IsBlocked:  rule.IsBlocked,
+	// 		LastAccess: rule.LastAccess,
+	// 		ResetTime:  time.Now(),
+	// 	}
+	// }
 
 	// Start daily reset worker
 	go ac.dailyResetWorker()
@@ -114,7 +111,7 @@ func (ac *AccessControl) dailyResetWorker() {
 	}
 }
 
-func (ac *AccessControl) AddRule(rule *AccessRule) error {
+func (ac *AccessControl) AddRule(rule *models.AccessRule) error {
 	ac.mu.Lock()
 
 	if rule.ID == "" {
@@ -123,7 +120,7 @@ func (ac *AccessControl) AddRule(rule *AccessRule) error {
 	rule.CreatedAt = time.Now()
 	rule.UpdatedAt = time.Now()
 
-	newRule := &AccessRule{
+	newRule := &models.AccessRule{
 		ID:          rule.ID,
 		Title:       rule.Title,
 		IP:          rule.IP,
@@ -146,7 +143,7 @@ func (ac *AccessControl) AddRule(rule *AccessRule) error {
 	return ac.SaveRules()
 }
 
-func (ac *AccessControl) UpdateRule(rule *AccessRule) error {
+func (ac *AccessControl) UpdateRule(rule *models.AccessRule) error {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 
@@ -191,7 +188,7 @@ func (ac *AccessControl) ResetRule(ruleID string) error {
 	return ac.SaveRules()
 }
 
-func (ac *AccessControl) GetRule(ruleID string) (*AccessRule, *AccessStatus) {
+func (ac *AccessControl) GetRule(ruleID string) (*models.AccessRule, *AccessStatus) {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
 
@@ -200,7 +197,7 @@ func (ac *AccessControl) GetRule(ruleID string) (*AccessRule, *AccessStatus) {
 	return rule, status
 }
 
-func (ac *AccessControl) GetRuleByIP(ip string) (*AccessRule, *AccessStatus) {
+func (ac *AccessControl) GetRuleByIP(ip string) (*models.AccessRule, *AccessStatus) {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
 
@@ -210,11 +207,11 @@ func (ac *AccessControl) GetRuleByIP(ip string) (*AccessRule, *AccessStatus) {
 	return nil, nil
 }
 
-func (ac *AccessControl) GetAllRules() []*AccessRule {
+func (ac *AccessControl) GetAllRules() []*models.AccessRule {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
 
-	rules := make([]*AccessRule, 0, len(ac.rules))
+	rules := make([]*models.AccessRule, 0, len(ac.rules))
 	for _, rule := range ac.rules {
 		rules = append(rules, rule)
 	}
@@ -268,7 +265,7 @@ func (ac *AccessControl) EndSession(ip string) {
 	}
 }
 
-func (ac *AccessControl) getRuleByIPLocked(ip string) (*AccessRule, *AccessStatus) {
+func (ac *AccessControl) getRuleByIPLocked(ip string) (*models.AccessRule, *AccessStatus) {
 	if ruleID, ok := ac.rulesByIP[ip]; ok {
 		fmt.Printf("******** Checking rule for IP: %+v\n", ac.rulesByIP)
 		fmt.Printf("******** Rule ID: %+v\n", ruleID)
@@ -280,30 +277,30 @@ func (ac *AccessControl) getRuleByIPLocked(ip string) (*AccessRule, *AccessStatu
 }
 
 func (ac *AccessControl) SaveRules() error {
-	ac.mu.RLock()
-	rules := make([]*models.Rule, 0, len(ac.rules))
+	// ac.mu.RLock()
+	// rules := make([]*models.AccessRule, 0, len(ac.rules))
 
-	for _, rule := range ac.rules {
-		status := ac.status[rule.ID]
-		rules = append(rules, &models.Rule{
-			ID:          rule.ID,
-			Title:       rule.Title,
-			IP:          rule.IP,
-			IsMaster:    rule.IsMaster,
-			DailyLimit:  rule.DailyLimit.String(),
-			Description: rule.Description,
-			CreatedAt:   rule.CreatedAt,
-			UpdatedAt:   rule.UpdatedAt,
-			LastAccess:  status.LastAccess,
-			UsedTime:    status.UsedTime,
-			IsBlocked:   status.IsBlocked,
-		})
-	}
-	ac.mu.RUnlock()
+	// for _, rule := range ac.rules {
+	// 	status := ac.status[rule.ID]
+	// 	rules = append(rules, &models.AccessRule{
+	// 		ID:          rule.ID,
+	// 		Title:       rule.Title,
+	// 		IP:          rule.IP,
+	// 		IsMaster:    rule.IsMaster,
+	// 		DailyLimit:  rule.DailyLimit,
+	// 		Description: rule.Description,
+	// 		CreatedAt:   rule.CreatedAt,
+	// 		UpdatedAt:   rule.UpdatedAt,
+	// 		LastAccess:  status.LastAccess,
+	// 		UsedTime:    status.UsedTime,
+	// 		IsBlocked:   status.IsBlocked,
+	// 	})
+	// }
+	// ac.mu.RUnlock()
 
-	config := &common.Config{
-		Rules: rules,
-	}
+	// config := &common.Config{
+	// 	AccessRules: rules,
+	// }
 
-	return ac.configManager.SaveConfig(config)
+	return nil // ac.configManager.SaveConfig(config)
 }

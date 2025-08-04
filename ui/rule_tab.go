@@ -6,6 +6,9 @@ import (
 	"sort"
 	"time"
 
+	"xengate/internal/common"
+	"xengate/internal/models"
+	"xengate/internal/storage"
 	"xengate/internal/tunnel"
 
 	"fyne.io/fyne/v2"
@@ -13,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	log "github.com/sirupsen/logrus"
 )
 
 type RulesTab struct {
@@ -20,18 +24,85 @@ type RulesTab struct {
 	accessControl *tunnel.AccessControl
 	container     *fyne.Container
 	table         *widget.Table
-	rules         []*tunnel.AccessRule
+	rules         []*models.AccessRule
 	autoSave      bool
+	configManager common.ConfigManager
+	storage       *storage.AppStorage
 }
 
 func NewRulesTab(window fyne.Window, accessControl *tunnel.AccessControl) *RulesTab {
+	storage, err := storage.NewAppStorage(fyne.CurrentApp())
+	if err != nil {
+		log.WithError(err).Error("Failed to initialize storage")
+		return nil
+	}
 	tab := &RulesTab{
 		window:        window,
 		accessControl: accessControl,
 		autoSave:      true,
+		storage:       storage,
+		configManager: &common.DefaultConfigManager{
+			Storage: storage,
+		},
 	}
 	tab.initUI()
+	tab.loadRulesFromConfig()
 	return tab
+}
+
+func (r *RulesTab) loadRulesFromConfig() {
+	config := r.configManager.LoadConfig()
+	if config == nil || config.AccessRules == nil {
+		return
+	}
+
+	for _, rule := range config.AccessRules {
+		r.accessControl.AddRule(rule)
+	}
+
+	r.refreshTable()
+}
+
+func (r *RulesTab) SaveRulesToConfig() error {
+	// blockedList := make([]*models.AccessRule, len(r.rules))
+
+	// for i, rule := range r.rules {
+	// 	blockedList[i] = &models.AccessRule{
+	// 		IP:        item.IP,
+	// 		Timestamp: item.Timestamp,
+	// 	}
+	// }
+
+	config := r.configManager.LoadConfig()
+	if config == nil {
+		config = &common.Config{}
+	}
+
+	config.AccessRules = r.rules
+
+	// if err := r.configManager.SaveConfig(config); err != nil {
+	// 	log.WithError(err).Error("Failed to save Access Rules to config")
+	// 	dialog.ShowError(fmt.Errorf("failed to save configuration: %v", err), r.window)
+	// }
+
+	return r.configManager.SaveConfig(config)
+}
+
+func formatRemainingTime(duration time.Duration) string {
+	if duration <= 0 {
+		return "0:00"
+	}
+
+	// محدود کردن به 24 ساعت
+	if duration > 24*time.Hour {
+		duration = 24 * time.Hour
+	}
+
+	totalMinutes := int(duration.Minutes())
+	hours := totalMinutes / 60
+	minutes := totalMinutes % 60
+
+	return fmt.Sprintf("%d:%02d", hours, minutes)
 }
 
 func (r *RulesTab) initUI() {
@@ -81,10 +152,7 @@ func (r *RulesTab) initUI() {
 						label.SetText("Blocked")
 					} else {
 						remaining := rule.DailyLimit - status.UsedTime
-						if remaining < 0 {
-							remaining = 0
-						}
-						label.SetText(remaining.String())
+						label.SetText(formatRemainingTime(remaining))
 					}
 				case 4:
 					if !status.LastAccess.IsZero() {
@@ -124,7 +192,7 @@ func (r *RulesTab) initUI() {
 	autoSaveCheck.Checked = true
 
 	saveButton := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
-		if err := r.accessControl.SaveRules(); err != nil {
+		if err := r.SaveRulesToConfig(); err != nil {
 			dialog.ShowError(err, r.window)
 		} else {
 			dialog.ShowInformation("Success", "Rules saved successfully", r.window)
@@ -151,7 +219,7 @@ func (r *RulesTab) initUI() {
 	go r.periodicRefresh()
 }
 
-func (r *RulesTab) showDetailsDialog(rule *tunnel.AccessRule) {
+func (r *RulesTab) showDetailsDialog(rule *models.AccessRule) {
 	_, status := r.accessControl.GetRule(rule.ID)
 
 	details := container.NewVBox(
@@ -166,9 +234,14 @@ func (r *RulesTab) showDetailsDialog(rule *tunnel.AccessRule) {
 		widget.NewLabel(fmt.Sprintf("Status: %s", getStatusText(rule, status))),
 	)
 
+	// ایجاد یک متغیر برای نگهداری dialog
+	var detailsDialog dialog.Dialog
+
 	actions := container.NewHBox(
 		widget.NewButton("Edit", func() {
-			dialog.ShowCustom("", "", nil, r.window) // Hide details dialog
+			if detailsDialog != nil {
+				detailsDialog.Hide() // بستن dialog فعلی
+			}
 			r.showEditDialog(rule)
 		}),
 		widget.NewButton("Reset Time", func() {
@@ -188,6 +261,9 @@ func (r *RulesTab) showDetailsDialog(rule *tunnel.AccessRule) {
 							dialog.ShowError(err, r.window)
 						} else {
 							r.refreshTable()
+							if detailsDialog != nil {
+								detailsDialog.Hide()
+							}
 						}
 					}
 				}, r.window)
@@ -200,7 +276,9 @@ func (r *RulesTab) showDetailsDialog(rule *tunnel.AccessRule) {
 		actions,
 	)
 
-	dialog.ShowCustom("Rule Details", "Close", content, r.window)
+	// ذخیره dialog در متغیر
+	detailsDialog = dialog.NewCustom("Rule Details", "Close", content, r.window)
+	detailsDialog.Show()
 }
 
 func (r *RulesTab) showAddDialog() {
@@ -226,7 +304,7 @@ func (r *RulesTab) showAddDialog() {
 				return
 			}
 
-			rule := &tunnel.AccessRule{
+			rule := &models.AccessRule{
 				Title:       titleEntry.Text,
 				IP:          ipEntry.Text,
 				IsMaster:    isMasterCheck.Checked,
@@ -241,7 +319,7 @@ func (r *RulesTab) showAddDialog() {
 
 			r.refreshTable()
 			if r.autoSave {
-				r.accessControl.SaveRules()
+				r.SaveRulesToConfig()
 			}
 		},
 	}
@@ -249,59 +327,59 @@ func (r *RulesTab) showAddDialog() {
 	dialog.ShowCustom("Add New Rule", "Add", form, r.window)
 }
 
-func (r *RulesTab) showEditDialog(rule *tunnel.AccessRule) {
-		titleEntry := widget.NewEntry()
-		titleEntry.SetText(rule.Title)
+func (r *RulesTab) showEditDialog(rule *models.AccessRule) {
+	titleEntry := widget.NewEntry()
+	titleEntry.SetText(rule.Title)
 
-		ipEntry := widget.NewEntry()
-		ipEntry.SetText(rule.IP)
+	ipEntry := widget.NewEntry()
+	ipEntry.SetText(rule.IP)
 
-		isMasterCheck := widget.NewCheck("Master IP", nil)
-		isMasterCheck.Checked = rule.IsMaster
+	isMasterCheck := widget.NewCheck("Master IP", nil)
+	isMasterCheck.Checked = rule.IsMaster
 
-		limitEntry := widget.NewEntry()
-		limitEntry.SetText(rule.DailyLimit.String())
+	limitEntry := widget.NewEntry()
+	limitEntry.SetText(rule.DailyLimit.String())
 
-		descEntry := widget.NewMultiLineEntry()
-		descEntry.SetText(rule.Description)
+	descEntry := widget.NewMultiLineEntry()
+	descEntry.SetText(rule.Description)
 
-		form := &widget.Form{
-			Items: []*widget.FormItem{
-				{Text: "Title", Widget: titleEntry},
-				{Text: "IP Address", Widget: ipEntry},
-				{Text: "Is Master", Widget: isMasterCheck},
-				{Text: "Daily Limit", Widget: limitEntry},
-				{Text: "Description", Widget: descEntry},
-			},
-			OnSubmit: func() {
-				limit, err := time.ParseDuration(limitEntry.Text)
-				if err != nil {
-					dialog.ShowError(err, r.window)
-					return
-				}
+	form := &widget.Form{
+		Items: []*widget.FormItem{
+			{Text: "Title", Widget: titleEntry},
+			{Text: "IP Address", Widget: ipEntry},
+			{Text: "Is Master", Widget: isMasterCheck},
+			{Text: "Daily Limit", Widget: limitEntry},
+			{Text: "Description", Widget: descEntry},
+		},
+		OnSubmit: func() {
+			limit, err := time.ParseDuration(limitEntry.Text)
+			if err != nil {
+				dialog.ShowError(err, r.window)
+				return
+			}
 
-				updatedRule := &tunnel.AccessRule{
-					ID:          rule.ID,
-					Title:       titleEntry.Text,
-					IP:          ipEntry.Text,
-					IsMaster:    isMasterCheck.Checked,
-					DailyLimit:  limit,
-					Description: descEntry.Text,
-				}
+			updatedRule := &models.AccessRule{
+				ID:          rule.ID,
+				Title:       titleEntry.Text,
+				IP:          ipEntry.Text,
+				IsMaster:    isMasterCheck.Checked,
+				DailyLimit:  limit,
+				Description: descEntry.Text,
+			}
 
-				if err := r.accessControl.UpdateRule(updatedRule); err != nil {
-					dialog.ShowError(err, r.window)
-					return
-				}
+			if err := r.accessControl.UpdateRule(updatedRule); err != nil {
+				dialog.ShowError(err, r.window)
+				return
+			}
 
-				r.refreshTable()
-				if r.autoSave {
-					r.accessControl.SaveRules()
-				}
-			},
-		}
+			r.refreshTable()
+			if r.autoSave {
+				r.SaveRulesToConfig()
+			}
+		},
+	}
 
-		dialog.ShowCustom("Edit Rule", "Save", form, r.window)
+	dialog.ShowCustom("Edit Rule", "Save", form, r.window)
 }
 
 func (r *RulesTab) refreshTable() {
@@ -323,7 +401,7 @@ func (r *RulesTab) Container() fyne.CanvasObject {
 	return r.container
 }
 
-func getStatusText(rule *tunnel.AccessRule, status *tunnel.AccessStatus) string {
+func getStatusText(rule *models.AccessRule, status *tunnel.AccessStatus) string {
 	if rule.IsMaster {
 		return "Master (Unlimited)"
 	}

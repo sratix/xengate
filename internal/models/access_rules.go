@@ -4,12 +4,12 @@ import (
 	"time"
 )
 
-type Rule struct {
+type AccessRule struct {
 	ID          string        `json:"id"`
 	Title       string        `json:"title"`
 	IP          string        `json:"ip"`
 	IsMaster    bool          `json:"is_master"`
-	DailyLimit  string        `json:"daily_limit"`
+	DailyLimit  time.Duration `json:"daily_limit"`
 	Description string        `json:"description"`
 	CreatedAt   time.Time     `json:"created_at"`
 	UpdatedAt   time.Time     `json:"updated_at"`
